@@ -34,6 +34,17 @@
         /* Leaflet Overrides */
         .leaflet-container { background: transparent !important; }
         .leaflet-marker-icon { border: none !important; background: none !important; }
+        .leaflet-control-zoom {
+            border: none !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+            margin-right: 2rem !important;
+            margin-bottom: 2rem !important;
+        }
+        .leaflet-control-zoom a {
+            background-color: rgba(255,255,255,0.9) !important;
+            color: #0D9488 !important;
+            border-bottom: 1px solid #eee !important;
+        }
         
         /* Map Background Treatment */
         #map-container {
@@ -48,7 +59,7 @@
         .glass-vignette {
             position: absolute;
             inset: 0;
-            pointer-events: none;
+            pointer-events: none; /* Allows free dragging and zooming underneath */
             background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent, rgba(255,255,255,0.4));
             z-index: 1;
         }
@@ -71,7 +82,7 @@
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Custom Map Tooltips & Animations */
+        /* Custom Map Tooltips & Static Animations */
         .custom-tooltip {
             background: rgba(255,255,255,0.9);
             border: 1px solid #0D9488;
@@ -94,9 +105,27 @@
             70% { box-shadow: 0 0 0 10px rgba(13,148,136,0); }
             100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
         }
-        .animated-route path {
-            stroke-dasharray: 2000;
-            stroke-dashoffset: 2000;
+
+        /* Dramatic Route Pointer & Trail Styles */
+        .dramatic-pointer {
+            width: 100%; height: 100%;
+            background-color: #0D9488;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px 5px rgba(13,148,136,0.8);
+            animation: pointerPulse 0.8s infinite alternate;
+        }
+        @keyframes pointerPulse {
+            0% { transform: scale(0.85); box-shadow: 0 0 10px 2px rgba(13,148,136,0.6); }
+            100% { transform: scale(1.15); box-shadow: 0 0 25px 8px rgba(13,148,136,1); }
+        }
+        .glowing-trail {
+            filter: drop-shadow(0 0 5px rgba(13,148,136, 0.5));
+            transition: opacity 1s ease-out;
+        }
+        .fade-out {
+            opacity: 0 !important;
+            transition: opacity 1.5s ease-out;
         }
     </style>
 </head>
@@ -139,8 +168,8 @@
         <div class="glass-vignette"></div>
 
         <!-- HEADER -->
-        <header class="p-8 flex justify-between items-center z-10 relative">
-            <div class="bg-white/40 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-sm">
+        <header class="p-8 flex justify-between items-center z-10 relative pointer-events-none">
+            <div class="bg-white/40 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-sm pointer-events-auto">
                 <h4 class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-1 flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
                     Live Logistics • URBN GAZ
@@ -150,7 +179,7 @@
                 </h1>
             </div>
             
-            <div id="active-route-badge" class="flex gap-4">
+            <div id="active-route-badge" class="flex gap-4 pointer-events-auto">
                 <div class="px-6 py-3 bg-white/80 backdrop-blur-xl border border-white shadow-xl rounded-full text-sm font-semibold flex items-center gap-3">
                     <i data-lucide="truck" class="w-[18px] h-[18px] text-teal-600"></i>
                     <span class="text-gray-400 font-normal">Active Route:</span>
@@ -160,10 +189,10 @@
         </header>
 
         <!-- VIEW CONTAINER -->
-        <div class="flex-1 flex items-end p-8 gap-8 z-10 relative pb-12 w-full max-w-7xl mx-auto">
+        <div class="flex-1 flex items-end p-8 gap-8 z-10 relative pb-12 w-full max-w-7xl mx-auto pointer-events-none">
             
             <!-- DASHBOARD VIEW -->
-            <div id="view-dashboard" class="view-panel view-visible w-full max-w-md bg-white/60 backdrop-blur-2xl border border-white/80 rounded-[40px] p-8 shadow-2xl shadow-gray-200/50">
+            <div id="view-dashboard" class="view-panel view-visible w-full max-w-md bg-white/60 backdrop-blur-2xl border border-white/80 rounded-[40px] p-8 shadow-2xl shadow-gray-200/50 pointer-events-auto">
                 <div class="flex justify-between items-start mb-6">
                     <div>
                         <span class="inline-block px-3 py-1 bg-teal-50 text-teal-600 rounded-lg text-[10px] font-bold tracking-widest uppercase mb-2">
@@ -172,10 +201,10 @@
                         <h2 id="dashboard-sector-name" class="text-3xl font-bold tracking-tighter text-gray-800">JOLSHIRI ABASHON</h2>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="navigateSector(-1)" class="p-3 bg-white rounded-full shadow-lg border border-gray-50 hover:scale-105 transition-transform active:scale-95">
+                        <button id="btn-prev" onclick="navigateSector(-1)" class="p-3 bg-white rounded-full shadow-lg border border-gray-50 hover:scale-105 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                             <i data-lucide="chevron-left" class="w-5 h-5"></i>
                         </button>
-                        <button onclick="navigateSector(1)" class="p-3 bg-teal-600 text-white rounded-full shadow-lg shadow-teal-200 hover:scale-105 transition-transform active:scale-95">
+                        <button id="btn-next" onclick="navigateSector(1)" class="p-3 bg-teal-600 text-white rounded-full shadow-lg shadow-teal-200 hover:scale-105 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                             <i data-lucide="chevron-right" class="w-5 h-5"></i>
                         </button>
                     </div>
@@ -203,7 +232,7 @@
             </div>
 
             <!-- ADMIN VIEW -->
-            <div id="view-admin" class="view-panel view-hidden w-full bg-white/90 backdrop-blur-2xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10">
+            <div id="view-admin" class="view-panel view-hidden w-full bg-white/90 backdrop-blur-2xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10 pointer-events-auto">
                 <!-- Input Form -->
                 <div class="flex-1">
                     <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
@@ -345,25 +374,31 @@
         let map = null;
         let markers = [];
         let currentPolygon = null;
-        let activeRouteLine = null;
+        let isNavigatingRoute = false; // Block UI during road animation
 
         // --- 3. INITIALIZATION ---
         document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons(); // Render initial icons
+            lucide.createIcons();
             initMap();
             renderDashboard();
         });
 
         // --- 4. MAP LOGIC & RENDERING ---
         function initMap() {
+            // Dragging enabled by default. We disable default zoom control to position it custom.
             map = L.map('map-container', {
                 zoomControl: false,
-                attributionControl: false
+                attributionControl: false,
+                scrollWheelZoom: true,
+                dragging: true
             }).setView(ALL_SECTORS[0].coords, 14);
 
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19
             }).addTo(map);
+
+            // Add Zoom Control to Bottom Right so it doesn't overlap sidebar
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             updateMapFeatures();
         }
@@ -383,7 +418,7 @@
         function updateMapFeatures() {
             const sector = ALL_SECTORS[currentIdx];
             
-            // 1. Draw Sector Polygon Outline
+            // Draw Sector Polygon Outline
             if (currentPolygon) map.removeLayer(currentPolygon);
             currentPolygon = L.polygon(sector.polygon, {
                 color: '#0D9488',
@@ -393,7 +428,7 @@
                 dashArray: '5, 5'
             }).addTo(map);
 
-            // 2. Plot Target Sites (Teal Dots)
+            // Plot Target Sites (Teal Dots)
             markers.forEach(m => map.removeLayer(m.marker));
             markers = [];
 
@@ -404,54 +439,149 @@
             });
         }
 
-        // --- 5. UI UPDATES & NAVIGATION ANIMATIONS ---
-        function navigateSector(direction) {
-            const prevCoords = ALL_SECTORS[currentIdx].coords;
+        // --- 5. ROAD ROUTING & ANIMATIONS ---
+        
+        async function navigateSector(direction) {
+            if (isNavigatingRoute) return; // Prevent clicking during travel
+            isNavigatingRoute = true;
             
-            // Update Index
+            // Update buttons visually
+            document.getElementById('btn-prev').disabled = true;
+            document.getElementById('btn-next').disabled = true;
+
+            const prevSector = ALL_SECTORS[currentIdx];
+            
+            // Increment Index
             currentIdx = (currentIdx + direction + ALL_SECTORS.length) % ALL_SECTORS.length;
             const newSector = ALL_SECTORS[currentIdx];
 
-            // Map Flyover
-            if(map) {
-                map.flyTo(newSector.coords, 14, { duration: 1.5, easeLinearity: 0.25 });
+            // Setup UI for Transition
+            showRoutingUI(newSector.sector);
+
+            // Clear current area markings during travel
+            if (currentPolygon) map.removeLayer(currentPolygon);
+            markers.forEach(m => map.removeLayer(m.marker));
+            markers = [];
+
+            // 1. Fetch Real Road Geometry from OSRM
+            let routePts = [];
+            try {
+                // Leaflet uses [Lat, Lng] but OSRM takes [Lng, Lat]
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${prevSector.coords[1]},${prevSector.coords[0]};${newSector.coords[1]},${newSector.coords[0]}?overview=full&geometries=geojson`;
+                const response = await fetch(osrmUrl);
+                const data = await response.json();
+                
+                // Convert back to [Lat, Lng] for Leaflet
+                routePts = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            } catch(e) {
+                console.warn("Routing API failed, falling back to direct line.", e);
+                routePts = [prevSector.coords, newSector.coords];
             }
 
-            // Draw Animated Navigation Path (Truck Route)
-            drawAnimatedRoute(prevCoords, newSector.coords);
+            // 2. Zoom map out to show the full journey path
+            const routeBounds = L.latLngBounds(routePts);
+            map.flyToBounds(routeBounds, { padding: [100, 100], duration: 1.5 });
 
-            // Update UI
-            renderDashboard();
-            updateMapFeatures();
+            // 3. Wait for flyTo to finish, then animate the pointer
+            setTimeout(() => {
+                playDramaticRouteAnimation(routePts, newSector);
+            }, 1600);
         }
 
-        function drawAnimatedRoute(start, end) {
-            if (activeRouteLine) map.removeLayer(activeRouteLine);
+        function playDramaticRouteAnimation(pts, targetSector) {
+            // Calculate segments distances to ensure smooth, constant speed
+            let totalDist = 0;
+            const dists = [0];
+            for(let i = 1; i < pts.length; i++){
+                totalDist += map.distance(pts[i-1], pts[i]);
+                dists.push(totalDist);
+            }
 
-            activeRouteLine = L.polyline([start, end], {
-                color: '#0D9488',
-                weight: 3,
-                className: 'animated-route',
-                opacity: 0.8
+            // Determine travel time based on distance (clamp between 2.5s and 5s)
+            let duration = (totalDist / 1000) * 300; 
+            duration = Math.max(2500, Math.min(duration, 5000));
+
+            // Create Dramatic Pointer Marker
+            const pointerIcon = L.divIcon({
+                className: 'pointer-vehicle-container',
+                html: '<div class="dramatic-pointer"></div>',
+                iconSize: [22, 22], iconAnchor: [11, 11]
+            });
+            const pointerMarker = L.marker(pts[0], {icon: pointerIcon, zIndexOffset: 1000}).addTo(map);
+            
+            // Create empty line for the trail
+            const trail = L.polyline([], {
+                color: '#0D9488', 
+                weight: 5, 
+                opacity: 0.9, 
+                className: 'glowing-trail'
             }).addTo(map);
 
-            // Trigger smooth CSS draw animation based on actual SVG path length
-            setTimeout(() => {
-                const pathEl = document.querySelector('.animated-route path');
-                if (pathEl) {
-                    const length = pathEl.getTotalLength();
-                    pathEl.style.strokeDasharray = length;
-                    pathEl.style.strokeDashoffset = length;
-                    // Trigger reflow
-                    pathEl.getBoundingClientRect();
-                    pathEl.style.transition = 'stroke-dashoffset 2s ease-in-out';
-                    pathEl.style.strokeDashoffset = '0';
+            const startTime = performance.now();
+
+            // Custom Animation Loop
+            function frame(time) {
+                const elapsed = time - startTime;
+                let progress = elapsed / duration;
+                if (progress > 1) progress = 1;
+
+                const targetDist = progress * totalDist;
+                
+                // Find current segment array index
+                let i = 1;
+                while(i < dists.length && dists[i] < targetDist) i++;
+                if (i >= dists.length) i = dists.length - 1;
+
+                // Interpolate exact position between points
+                const segmentProgress = (targetDist - dists[i-1]) / (dists[i] - dists[i-1] || 1);
+                const lat = pts[i-1][0] + (pts[i][0] - pts[i-1][0]) * segmentProgress;
+                const lng = pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * segmentProgress;
+
+                const currentPos = [lat, lng];
+                pointerMarker.setLatLng(currentPos);
+                
+                // Update the visual trail array
+                const currentTrail = pts.slice(0, i);
+                currentTrail.push(currentPos);
+                trail.setLatLngs(currentTrail);
+
+                if (progress < 1) {
+                    requestAnimationFrame(frame);
+                } else {
+                    // --- ANIMATION FINISHED ---
+                    // 1. Update UI to new sector
+                    document.getElementById('header-sector-name').textContent = targetSector.sector;
+                    renderDashboard();
+                    updateMapFeatures();
+                    
+                    // 2. Fly back in to Sector bounds
+                    map.flyTo(targetSector.coords, 14, { duration: 1.0 });
+
+                    // 3. Trail Vanishing Logic (Wait 4 seconds, then fade out)
+                    setTimeout(() => {
+                        // Trigger CSS Fade class
+                        if(trail._path) trail._path.classList.add('fade-out');
+                        if(pointerMarker._icon) pointerMarker._icon.classList.add('fade-out');
+                        
+                        // Physically remove from map after fade completes
+                        setTimeout(() => {
+                            map.removeLayer(trail);
+                            map.removeLayer(pointerMarker);
+                            
+                            // Re-enable interactions
+                            isNavigatingRoute = false;
+                            document.getElementById('btn-prev').disabled = false;
+                            document.getElementById('btn-next').disabled = false;
+                        }, 1500); // matches CSS transition duration
+                    }, 4000); 
                 }
-            }, 50);
+            }
+            requestAnimationFrame(frame);
         }
 
         // Project Click Logic
         function selectProject(index) {
+            if(isNavigatingRoute) return;
             const sector = ALL_SECTORS[currentIdx];
             const p = sector.projects[index];
             
@@ -479,6 +609,22 @@
                     el.classList.add('border-white/50', 'bg-white/80');
                 }
             });
+        }
+
+        // UI Helpers
+        function showRoutingUI(targetSectorName) {
+            document.getElementById('dashboard-sector-name').textContent = `ROUTING...`;
+            document.getElementById('dashboard-status').textContent = "In Transit";
+            document.getElementById('dashboard-capacity').textContent = "---";
+            document.getElementById('project-count').textContent = "0";
+            document.getElementById('project-list').innerHTML = `
+                <div class="p-8 flex flex-col items-center justify-center text-teal-600 font-bold opacity-80 h-32">
+                    <i data-lucide="loader-2" class="w-8 h-8 animate-spin mb-3"></i> 
+                    <span>Establishing Route to</span>
+                    <span class="text-xs text-gray-500 mt-1 uppercase">${targetSectorName}</span>
+                </div>
+            `;
+            lucide.createIcons();
         }
 
         function renderDashboard() {
