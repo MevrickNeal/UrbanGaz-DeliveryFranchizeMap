@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>URBN GAZ Tactical Dashboard</title>
+    <title>URBN GAZ Tactical Dashboard & Billing</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,7 +15,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
         body {
             font-family: 'Inter', sans-serif;
@@ -26,7 +26,7 @@
         }
 
         /* Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
@@ -45,6 +45,19 @@
             color: #0D9488 !important;
             border-bottom: 1px solid #eee !important;
         }
+
+        /* Custom Popup Styling */
+        .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(13, 148, 136, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            padding: 0;
+            overflow: hidden;
+        }
+        .leaflet-popup-content { margin: 0; width: 220px !important; }
+        .leaflet-popup-tip-container { display: none; } /* Hide the tip for a cleaner floating card look */
         
         /* Map Background Treatment */
         #map-container {
@@ -52,6 +65,10 @@
             height: 100%;
             z-index: 0;
             filter: grayscale(0.5) contrast(1.1);
+            transition: filter 0.8s ease;
+        }
+        .map-traffic-mode {
+            filter: grayscale(0) contrast(1.2) brightness(0.9) hue-rotate(0.9) !important;
         }
 
         /* View Transitions */
@@ -77,31 +94,6 @@
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* Custom Map Tooltips & Static Animations */
-        .custom-tooltip {
-            background: rgba(255,255,255,0.95);
-            border: 1px solid #0D9488;
-            border-radius: 6px;
-            color: #0D9488;
-            font-weight: bold;
-            font-size: 11px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            padding: 4px 8px;
-        }
-        .pulse-icon {
-            width: 16px; height: 16px;
-            background-color: #0D9488;
-            border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 0 15px 5px rgba(13,148,136,0.6);
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(13,148,136,0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(13,148,136,0); }
-            100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
-        }
-
         /* Dramatic Route Pointer & Trail Styles */
         .dramatic-pointer {
             width: 100%; height: 100%;
@@ -117,21 +109,47 @@
         }
         .glowing-trail {
             filter: drop-shadow(0 0 5px rgba(13,148,136, 0.5));
-            transition: opacity 1.5s ease-out;
+            transition: opacity 1.0s ease-out; 
         }
         .fade-out {
             opacity: 0 !important;
             pointer-events: none;
         }
-
-        /* SPLASH SCREEN ANIMATIONS */
-        .splash-logo {
-            animation: float 4s ease-in-out infinite;
+        
+        .opt-route-trail {
+            filter: drop-shadow(0 0 8px rgba(245,158,11, 0.6));
+            stroke-dasharray: 10;
+            animation: dashScroll 1s linear infinite;
         }
+        @keyframes dashScroll {
+            to { stroke-dashoffset: -20; }
+        }
+
+        /* Splash Screen */
+        .splash-logo { animation: float 4s ease-in-out infinite; }
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-15px); }
             100% { transform: translateY(0px); }
+        }
+        
+        .geo-polygon { animation: dashDraw 30s linear infinite; }
+        @keyframes dashDraw { to { stroke-dashoffset: -150; } }
+
+        /* Modal Backdrop */
+        .modal-backdrop {
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Marker Pulse Animation */
+        .marker-pulse-urgent {
+            animation: pulseUrgent 1.5s infinite;
+        }
+        @keyframes pulseUrgent {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
     </style>
 </head>
@@ -140,19 +158,14 @@
     <!-- ================= LOADING SPLASH SCREEN ================= -->
     <div id="splash-screen" class="fixed inset-0 z-[9999] bg-[#FDFDFF] flex flex-col items-center justify-center transition-opacity duration-1000">
         <div class="relative flex flex-col items-center">
-            <!-- Glowing background aura -->
             <div class="absolute inset-0 rounded-full blur-[80px] bg-teal-400/20 animate-pulse w-64 h-64 -m-8 mx-auto"></div>
-            
-            <!-- Company Logo (searches local folder) -->
-            <img src="./urbangaz.png" alt="URBN GAZ Logo" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
-            
-            <!-- Loader & Text -->
+            <img src="./urbangaz.png" alt="URBN GAZ" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
             <div class="z-10 flex flex-col items-center w-64">
                 <div class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-3 flex items-center gap-2">
                     <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Initializing Network
                 </div>
                 <div class="w-full h-1 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                    <div id="loading-progress" class="h-full bg-teal-500 w-0 transition-all duration-[2000ms] ease-out rounded-full"></div>
+                    <div id="loading-progress" class="h-full bg-teal-500 w-0 transition-all duration-[1500ms] ease-out rounded-full"></div>
                 </div>
             </div>
         </div>
@@ -160,8 +173,7 @@
 
     <!-- ================= SIDEBAR ================= -->
     <nav class="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 gap-10 z-[100] shadow-sm flex-shrink-0 relative">
-        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer hover:scale-105 transition-transform">
-            <!-- Custom LPG Cylinder Icon -->
+        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer hover:scale-105 transition-transform" onclick="minimizeAllViews()">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white">
                 <path d="M7 8C7 5.79086 8.79086 4 11 4H13C15.2091 4 17 5.79086 17 8V10H7V8Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.5" />
                 <rect x="6" y="10" width="12" height="10" rx="2" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="1.5" />
@@ -169,45 +181,55 @@
                 <path d="M10 13H14M12 11V15" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
             </svg>
         </div>
-        <div class="flex flex-col gap-8 w-full px-4">
-            <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm">
-                <i data-lucide="layout-grid" class="w-[22px] h-[22px]"></i>
+        <div class="flex flex-col gap-6 w-full px-4">
+            <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm" title="Live Logistics Map">
+                <i data-lucide="map" class="w-[22px] h-[22px]"></i>
             </button>
-            <button onclick="switchView('admin')" id="nav-admin" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+            <button onclick="switchView('admin')" id="nav-admin" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50" title="Data Entry Management">
                 <i data-lucide="database" class="w-[22px] h-[22px]"></i>
             </button>
-            <button onclick="switchView('activity')" id="nav-activity" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
-                <i data-lucide="activity" class="w-[22px] h-[22px]"></i>
+            <button onclick="switchView('billing')" id="nav-billing" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50" title="Billing Management">
+                <i data-lucide="calculator" class="w-[22px] h-[22px]"></i>
             </button>
         </div>
         <div class="mt-auto w-full px-4">
-            <button onclick="switchView('user')" id="nav-user" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+            <button onclick="switchView('user')" id="nav-user" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50" title="User Settings & Role">
                 <i data-lucide="user" class="w-[22px] h-[22px]"></i>
             </button>
         </div>
     </nav>
 
     <!-- ================= MAIN CONTENT AREA ================= -->
-    <main class="flex-1 relative overflow-hidden">
+    <main class="flex-1 relative overflow-hidden bg-[#F8F9FA]">
         
-        <!-- MAP BACKGROUND (Fully Interactive) -->
-        <div id="map-container"></div>
-        
-        <!-- Subtle Glass Overlay (pointer-events-none ensures clicks pass through to map) -->
-        <div class="absolute inset-0 z-[1] pointer-events-none" style="background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent, rgba(255,255,255,0.4));"></div>
+        <!-- MAP BACKGROUND -->
+        <div id="map-container" class="absolute inset-0"></div>
+        <div class="absolute inset-0 z-[1] pointer-events-none bg-gradient-to-b from-white/20 via-transparent to-white/40 mix-blend-overlay"></div>
 
-        <!-- OVERLAYS: ABSOLUTELY POSITIONED TO PREVENT MAP BLOCKING -->
-        
         <!-- HEADER: TOP LEFT -->
         <div class="absolute top-8 left-8 z-[20] pointer-events-auto">
-            <div class="bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white/60 shadow-lg">
+            <div class="bg-white/80 backdrop-blur-xl p-4 rounded-3xl border border-white shadow-xl">
                 <h4 class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-1 flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-                    Live Logistics • URBN GAZ
+                    <span id="role-badge">DISTRIBUTOR</span>
                 </h4>
                 <h1 class="text-2xl font-light tracking-tight text-gray-800">
-                    <span id="header-title-prefix">Delivery</span> <span class="font-semibold text-black">Portal</span>
+                    <span id="header-title-prefix">Logistics</span> <span class="font-semibold text-black">Portal</span>
                 </h1>
+            </div>
+
+            <!-- MAP FLOATING CONTROLS (Traffic, Priority, Route) -->
+            <div id="map-controls" class="mt-4 flex flex-col gap-3 transition-opacity duration-300">
+                <button onclick="toggleTrafficLayer()" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
+                    <div id="traffic-indicator" class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-colors"></div>
+                    Live Traffic Radar
+                </button>
+                <button onclick="togglePriorityAlerts()" id="btn-priority" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-gray-400" id="icon-priority"></i> Priority Alerts
+                </button>
+                <button onclick="calculateAdvancedRoute()" id="btn-route-plan" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
+                    <i data-lucide="route" class="w-4 h-4 text-teal-600"></i> Smart Route Plan
+                </button>
             </div>
         </div>
 
@@ -215,764 +237,828 @@
         <div id="active-route-badge" class="absolute top-8 right-8 z-[20] pointer-events-auto transition-opacity duration-300">
             <div class="px-6 py-3 bg-white/90 backdrop-blur-xl border border-white shadow-xl rounded-full text-sm font-semibold flex items-center gap-3">
                 <i data-lucide="truck" class="w-[18px] h-[18px] text-teal-600"></i>
-                <span class="text-gray-400 font-normal">Active Route:</span>
+                <span class="text-gray-400 font-normal">Active Region:</span>
                 <span id="header-sector-name">JOLSHIRI ABASHON</span>
             </div>
         </div>
 
-        <!-- VIEWS WRAPPER: BOTTOM -->
-        <div class="absolute bottom-8 left-8 right-8 z-[20] pointer-events-none flex items-end justify-start">
+        <!-- VIEWS WRAPPER -->
+        <div class="absolute inset-0 pt-[120px] pb-8 px-8 z-[20] pointer-events-none flex flex-col justify-end">
             
-            <!-- ================= DASHBOARD VIEW ================= -->
-            <div id="view-dashboard" class="view-panel view-visible w-full max-w-md bg-white/70 backdrop-blur-2xl border border-white/80 rounded-[40px] p-8 shadow-2xl shadow-gray-200/50 pointer-events-auto">
+            <!-- ================= VIEW 1: DASHBOARD (MAP PANEL) ================= -->
+            <div id="view-dashboard" class="view-panel view-visible w-full max-w-sm bg-white/80 backdrop-blur-2xl border border-white rounded-[40px] shadow-2xl pointer-events-auto self-start mt-auto relative z-[100] flex flex-col overflow-hidden max-h-[80vh]">
                 
-                <div class="flex flex-col mb-6 gap-4 relative z-20">
-                    <!-- Title and Custom Dropdown Selector -->
+                <!-- Panel Header with Minimize -->
+                <div class="flex justify-between items-center p-6 pb-2">
+                    <h3 class="text-xs font-bold text-gray-400 tracking-widest uppercase">Map Navigator</h3>
+                    <button onclick="minimizeAllViews()" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+                        <i data-lucide="minimize-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <div class="px-8 pb-6 flex flex-col gap-4 relative">
                     <div class="flex justify-between items-start">
                         <div class="relative w-full">
-                            <div class="relative inline-block z-[100]">
-                                <button id="btn-dropdown" onclick="toggleSectorDropdown(event)" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/60 hover:bg-white/90 border border-white/80 text-teal-700 rounded-xl text-[10px] font-bold tracking-widest uppercase mb-2 transition-all shadow-sm backdrop-blur-md">
-                                    <i data-lucide="map" class="w-3 h-3"></i> Select Area <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                            <div class="relative inline-block z-[101]">
+                                <button id="btn-dropdown" onclick="toggleSectorDropdown(event)" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-teal-700 rounded-xl text-[10px] font-bold tracking-widest uppercase mb-2 hover:bg-gray-50 shadow-sm transition-all">
+                                    <i data-lucide="map" class="w-3 h-3"></i> Select Region <i data-lucide="chevron-down" class="w-3 h-3"></i>
                                 </button>
-                                <!-- The Dropdown Menu -->
-                                <div id="sector-dropdown" class="absolute top-full left-0 mt-2 w-56 bg-white/95 backdrop-blur-2xl border border-white shadow-2xl rounded-2xl p-2 hidden opacity-0 transition-all duration-200 origin-top-left transform scale-95 z-[100]">
-                                    <!-- Injected via JS -->
-                                </div>
+                                <div id="sector-dropdown" class="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 shadow-2xl rounded-2xl p-2 hidden opacity-0 transition-all duration-200 origin-top-left transform scale-95 z-[102]"></div>
                             </div>
                             <h2 id="dashboard-sector-name" class="text-3xl font-bold tracking-tighter text-gray-800">JOLSHIRI ABASHON</h2>
                         </div>
                     </div>
                     
-                    <!-- Navigation Controls (Prev/Next with Area Labels) -->
-                    <div class="flex justify-between items-center w-full mt-2 pt-4 border-t border-white/40">
+                    <div class="flex justify-between items-center w-full mt-2 pt-4 border-t border-gray-200">
                         <div class="flex items-center gap-3 cursor-pointer group transition-all" onclick="navigateSector(-1)" id="btn-prev-wrapper">
-                            <button class="p-3 bg-white rounded-full shadow-lg border border-gray-50 group-hover:scale-105 transition-all active:scale-95">
-                                <i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i>
-                            </button>
+                            <button class="p-3 bg-white rounded-full shadow-md border border-gray-100 group-hover:scale-105 active:scale-95 transition-all"><i data-lucide="chevron-left" class="w-5 h-5 text-gray-600"></i></button>
                             <div class="flex flex-col">
-                                <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Previous Area</span>
-                                <span id="label-prev-sector" class="text-xs font-bold text-teal-700 truncate max-w-[110px]">UTTARA</span>
+                                <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Previous</span>
+                                <span id="label-prev-sector" class="text-xs font-bold text-teal-700 truncate max-w-[90px]">UTTARA</span>
                             </div>
                         </div>
-
                         <div class="flex items-center gap-3 text-right cursor-pointer group transition-all" onclick="navigateSector(1)" id="btn-next-wrapper">
                             <div class="flex flex-col items-end">
                                 <span class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Next Area</span>
-                                <span id="label-next-sector" class="text-xs font-bold text-teal-700 truncate max-w-[110px]">KHILKHET</span>
+                                <span id="label-next-sector" class="text-xs font-bold text-teal-700 truncate max-w-[90px]">KHILKHET</span>
                             </div>
-                            <button class="p-3 bg-teal-600 text-white rounded-full shadow-lg shadow-teal-200 group-hover:scale-105 transition-all active:scale-95">
-                                <i data-lucide="chevron-right" class="w-5 h-5 text-white"></i>
-                            </button>
+                            <button class="p-3 bg-teal-600 text-white rounded-full shadow-lg shadow-teal-200 group-hover:scale-105 active:scale-95 transition-all"><i data-lucide="chevron-right" class="w-5 h-5 text-white"></i></button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-2 gap-4 mb-6 relative z-10">
-                    <div class="p-4 bg-white/90 rounded-2xl border border-white shadow-sm">
-                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Zone Status</div>
-                        <div id="dashboard-status" class="text-lg font-bold text-gray-800">Active</div>
-                    </div>
-                    <div class="p-4 bg-white/90 rounded-2xl border border-white shadow-sm">
-                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Capacity</div>
-                        <div id="dashboard-capacity" class="text-lg font-bold text-gray-800">85%</div>
+                <div class="px-8 pb-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                            <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Status</div>
+                            <div id="dashboard-status" class="text-sm font-bold text-gray-800">Active Delivery</div>
+                        </div>
+                        <div class="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                            <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Capacity</div>
+                            <div id="dashboard-capacity" class="text-sm font-bold text-gray-800">85%</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar relative z-10">
-                    <h3 class="text-[10px] font-bold text-gray-400 tracking-widest uppercase flex items-center gap-2 mb-4">
-                        <i data-lucide="map-pin" class="w-3 h-3"></i> Target Sites (<span id="project-count">0</span>)
+                <div class="px-8 pb-8 flex-1 overflow-y-auto pr-6 custom-scrollbar">
+                    <h3 class="text-[10px] font-bold text-gray-400 tracking-widest uppercase flex items-center gap-2 mb-4 sticky top-0 bg-white/80 backdrop-blur-md py-2 z-10">
+                        <i data-lucide="map-pin" class="w-3 h-3"></i> Live Target Sites (<span id="project-count">0</span>)
                     </h3>
-                    <div id="project-list" class="space-y-3">
-                        <!-- Projects injected via JS -->
-                    </div>
+                    <div id="project-list" class="space-y-3"></div>
                 </div>
             </div>
 
-            <!-- ================= ADMIN VIEW ================= -->
-            <div id="view-admin" class="view-panel view-hidden w-full max-w-5xl bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10 mx-auto pointer-events-auto">
-                <!-- Input Form -->
-                <div class="flex-1">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-                        <i data-lucide="plus" class="text-teal-600"></i> Register New Project Site
-                    </h2>
-                    <div class="grid grid-cols-2 gap-6">
-                        <div class="flex flex-col gap-2">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Project Name</label>
-                            <input id="input-proj-name" type="text" placeholder="e.g. ASA TOWER" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Sector / Area</label>
-                            <input id="input-proj-sector" type="text" placeholder="e.g. JOLSHIRI SEC-12" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude (GPS)</label>
-                            <input id="input-proj-lat" type="text" placeholder="23.8223" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude (GPS)</label>
-                            <input id="input-proj-lng" type="text" placeholder="90.4873" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
-                        </div>
+            <!-- ================= VIEW 2: DATA ENTRY MANAGEMENT ================= -->
+            <div id="view-admin" class="view-panel view-hidden w-full h-full bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+                <div class="flex items-center justify-between p-8 pb-4 border-b border-gray-100 shrink-0">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-2xl font-bold flex items-center gap-3 text-gray-800">
+                            <i data-lucide="database" class="text-teal-600"></i> Management System
+                        </h2>
+                        <span id="role-tag-management" class="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold tracking-widest uppercase flex items-center gap-2">
+                            <i data-lucide="lock" class="w-3 h-3"></i> Distributor Access
+                        </span>
                     </div>
-                    
-                    <div class="mt-10 p-6 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50 flex flex-col items-center justify-center group cursor-pointer hover:bg-white hover:border-teal-300 transition-all">
-                        <i data-lucide="file-text" class="text-teal-600 mb-2 group-hover:scale-110 transition-transform w-8 h-8"></i>
-                        <span class="text-sm font-semibold text-gray-700">Upload Billing Excel (.xlsx)</span>
-                        <span class="text-[10px] text-gray-400 mt-1">Sync consumption data with franchise portal</span>
-                    </div>
-
-                    <button id="btn-save-project" onclick="saveToGoogleSheet()" class="mt-8 w-full py-4 bg-teal-600 text-white rounded-2xl font-bold shadow-lg shadow-teal-100 flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors">
-                        <i data-lucide="save" class="w-[18px] h-[18px]"></i> Update Fleet Data
+                    <button onclick="minimizeAllViews()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+                        <i data-lucide="minimize-2" class="w-5 h-5"></i>
                     </button>
-                    <!-- Status message hidden by default -->
-                    <div id="save-status-msg" class="text-center mt-3 text-xs font-bold opacity-0 transition-opacity"></div>
                 </div>
 
-                <!-- Franchise Status -->
-                <div class="w-1/3 min-w-[300px] bg-gray-50/50 rounded-3xl p-6 border border-gray-100">
-                    <h3 class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-6">Connected Franchises</h3>
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
-                            <div class="flex items-center gap-3">
-                                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                <span class="text-xs font-bold text-gray-700">Jolshiri Hub</span>
+                <div class="flex gap-8 overflow-hidden h-full p-8 pt-6">
+                    <div class="flex-[1.5] overflow-y-auto pr-4 custom-scrollbar space-y-6 pb-10">
+                        
+                        <!-- File Upload Controls -->
+                        <div class="flex gap-4">
+                            <div class="flex-1 p-4 border border-dashed border-gray-300 rounded-2xl bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100" onclick="document.getElementById('franchise-excel').click()">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white rounded-lg shadow-sm"><i data-lucide="file-spreadsheet" class="w-5 h-5 text-green-600"></i></div>
+                                    <div>
+                                        <div class="text-xs font-bold text-gray-700">Import Franchise Excel</div>
+                                        <div class="text-[9px] text-gray-500 uppercase">.xlsx / .csv format</div>
+                                    </div>
+                                </div>
+                                <i data-lucide="upload" class="w-4 h-4 text-gray-400"></i>
+                                <input type="file" id="franchise-excel" class="hidden" accept=".csv, .xlsx" onchange="handleFranchiseImport(event)">
                             </div>
-                            <span class="text-[10px] font-bold text-green-600">Online</span>
                         </div>
-                        <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
-                            <div class="flex items-center gap-3">
-                                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                <span class="text-xs font-bold text-gray-700">Khilkhet Depot</span>
+
+                        <!-- Franchise Entry -->
+                        <div class="p-6 bg-gray-50/50 border border-gray-200 rounded-3xl">
+                            <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="briefcase" class="w-4 h-4 text-teal-600"></i> 1. Franchise Details</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Franchise Owner Name</label><input type="text" placeholder="e.g. Mr. Rahman" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Contact Number</label><input type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                             </div>
-                            <span class="text-[10px] font-bold text-green-600">Online</span>
                         </div>
-                        <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
-                            <div class="flex items-center gap-3">
-                                <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                                <span class="text-xs font-bold text-gray-700">Uttara Point</span>
+
+                        <!-- Building Entry -->
+                        <div class="p-6 bg-gray-50/50 border border-gray-200 rounded-3xl">
+                            <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="building" class="w-4 h-4 text-teal-600"></i> 2. Building Details</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="flex flex-col gap-1.5 col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Building Name & Address</label><input type="text" placeholder="e.g. Asa Tower, Sec-11, Jolshiri" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Total Flats</label><input type="number" placeholder="10" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Owner Contact (Optional)</label><input type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                             </div>
-                            <span class="text-[10px] font-bold text-gray-400">Offline</span>
                         </div>
+
+                        <!-- Flat & Meter Entry -->
+                        <div class="p-6 bg-teal-50/50 border border-teal-100 rounded-3xl">
+                            <h3 class="text-xs font-bold text-teal-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="gauge" class="w-4 h-4 text-teal-600"></i> 3. Flat & Meter Entry</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Flat Number / Unit</label><input type="text" placeholder="A-1" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Active Meter Number</label><input type="text" placeholder="MTR-8820" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm font-mono"/></div>
+                            </div>
+
+                            <div class="p-4 bg-white rounded-2xl border border-gray-200 mt-6 shadow-sm">
+                                <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
+                                    <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Auto-Calculation Matrix</h4>
+                                    <span id="admin-override-badge" class="text-[9px] font-bold text-orange-500 hidden bg-orange-50 px-2 py-0.5 rounded">Admin Override Active</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 mb-4">
+                                    <div class="flex flex-col gap-1.5">
+                                        <label class="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1"><i data-lucide="lock" class="w-2 h-2" id="prev-lock-icon"></i> Prev Month</label>
+                                        <input id="form-prev" type="number" value="120" readonly oninput="calcEntryBill()" class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none text-sm font-mono text-gray-500"/>
+                                    </div>
+                                    <div class="flex flex-col gap-1.5">
+                                        <label class="text-[10px] font-bold text-teal-600 uppercase">Curr Month</label>
+                                        <input id="form-curr" type="number" placeholder="0" oninput="calcEntryBill()" class="px-3 py-2 bg-white border border-teal-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm font-mono font-bold text-teal-700"/>
+                                    </div>
+                                    <div class="flex flex-col gap-1.5">
+                                        <label class="text-[10px] font-bold text-gray-500 uppercase">Rate (৳)</label>
+                                        <input id="form-rate" type="number" value="30" oninput="calcEntryBill()" class="px-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm font-mono"/>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                    <div class="flex flex-col"><span class="text-[9px] font-bold text-gray-400 uppercase">Gas Consumption</span><span id="form-calc-cons" class="font-mono font-bold text-sm">0 Units</span></div>
+                                    <div class="flex flex-col text-right"><span class="text-[9px] font-bold text-teal-600 uppercase">Generated Bill</span><span id="form-calc-bill" class="font-mono font-bold text-xl text-teal-700">৳ 0.00</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-black transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="plus-circle" class="w-5 h-5"></i> Generate Bill & Save to Sheets
+                        </button>
                     </div>
-                    <div class="mt-10 p-5 bg-teal-600 rounded-2xl text-white shadow-xl shadow-teal-600/30">
-                        <div class="text-[10px] font-bold opacity-80 uppercase tracking-wider mb-1">Monthly Billing Total</div>
-                        <div class="text-3xl font-bold tracking-tight">৳ 4,12,500</div>
-                        <div class="mt-4 flex items-center gap-2 text-[10px] font-bold bg-white/20 px-3 py-1.5 rounded-lg w-max backdrop-blur-sm">
-                            <i data-lucide="trending-up" class="w-3 h-3"></i> +12% vs last month
+
+                    <div class="w-1/3 min-w-[300px] bg-gray-50 rounded-3xl p-6 border border-gray-200 flex flex-col h-full">
+                        <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="network" class="w-4 h-4 text-teal-600"></i> Database Tree</h3>
+                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <style>details > summary::-webkit-details-marker { display: none; } .tree-line { border-left: 2px solid #E5E7EB; margin-left: 0.5rem; padding-left: 1rem; margin-top: 0.5rem; }</style>
+                            <details class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-3" open>
+                                <summary class="p-3 font-bold text-sm text-gray-800 hover:bg-gray-50 transition-colors flex items-center gap-2 cursor-pointer"><i data-lucide="briefcase" class="w-4 h-4 text-teal-600"></i> Jolshiri Hub</summary>
+                                <div class="tree-line pb-3">
+                                    <details class="bg-gray-50 rounded-lg border border-gray-200 mt-2" open>
+                                        <summary class="p-2 font-semibold text-xs text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2 cursor-pointer"><i data-lucide="building" class="w-3 h-3 text-blue-500"></i> Asa Tower</summary>
+                                        <div class="tree-line text-[11px] text-gray-600 space-y-2 pb-2">
+                                            <div class="flex items-center gap-2 p-2 bg-white rounded border border-gray-100">Flat A-1 <span class="ml-auto font-mono text-[9px] bg-teal-50 text-teal-700 px-1 rounded">৳ 1350</span></div>
+                                            <div class="flex items-center gap-2 p-2 bg-white rounded border border-gray-100">Flat A-2 <span class="ml-auto font-mono text-[9px] bg-teal-50 text-teal-700 px-1 rounded">৳ 900</span></div>
+                                        </div>
+                                    </details>
+                                </div>
+                            </details>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- ================= ACTIVITY LOG VIEW ================= -->
-            <div id="view-activity" class="view-panel view-hidden w-full max-w-xl bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-10 shadow-2xl mx-auto pointer-events-auto">
-                <div class="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6">
-                    <div class="p-3 bg-teal-50 text-teal-600 rounded-xl"><i data-lucide="activity"></i></div>
+            <!-- ================= VIEW 3: BILLING MANAGEMENT ================= -->
+            <div id="view-billing" class="view-panel view-hidden w-full h-full bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+                <div class="flex items-center justify-between p-8 pb-4 border-b border-gray-100 shrink-0">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800">Fleet Activity Log</h2>
-                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Real-time Telemetry Data</p>
+                        <h2 class="text-2xl font-bold flex items-center gap-3 text-gray-800">
+                            <i data-lucide="calculator" class="text-teal-600"></i> Billing Management
+                        </h2>
+                    </div>
+                    <div class="flex gap-3 items-center">
+                        <button onclick="exportCSV()" class="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-xs font-bold flex items-center gap-2 text-gray-600 transition-colors shadow-sm">
+                            <i data-lucide="download" class="w-3 h-3"></i> Export CSV
+                        </button>
+                        <div class="w-px h-6 bg-gray-200 mx-1"></div>
+                        <select id="filter-franchise" onchange="renderBillingTable()" class="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none">
+                            <option value="ALL">All Franchises</option>
+                            <option value="Jolshiri Hub">Jolshiri Hub</option>
+                            <option value="Khilkhet Depot">Khilkhet Depot</option>
+                        </select>
+                        <button onclick="minimizeAllViews()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors ml-2">
+                            <i data-lucide="minimize-2" class="w-5 h-5"></i>
+                        </button>
                     </div>
                 </div>
-                
-                <div class="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar relative">
-                    <!-- Timeline Line -->
-                    <div class="absolute left-3 top-2 bottom-2 w-0.5 bg-gray-100 z-0"></div>
 
-                    <!-- Log Items -->
-                    <div class="relative z-10 flex gap-6">
-                        <div class="w-6 h-6 rounded-full bg-teal-500 border-4 border-white shadow-sm flex-shrink-0 mt-1"></div>
-                        <div class="bg-gray-50/80 rounded-2xl p-4 w-full border border-gray-100">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-bold text-gray-800">Cylinder Delivery Complete</span>
-                                <span class="text-[10px] font-mono text-gray-400">Just Now</span>
-                            </div>
-                            <p class="text-xs text-gray-500">Fleet #04 dropped 24x LPG Cylinders at <span class="font-bold text-teal-600">ZOITA, SEC-12 JOLSHIRI</span>.</p>
+                <div class="p-8 pt-4 flex flex-col h-full overflow-hidden">
+                    <div class="grid grid-cols-4 gap-4 mb-6 shrink-0">
+                        <div class="bg-gray-50 rounded-2xl p-5 border border-gray-200">
+                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Gas Sold</div>
+                            <div id="kpi-vol" class="text-xl font-mono font-bold text-gray-800">0 Units</div>
                         </div>
-                    </div>
-                    
-                    <div class="relative z-10 flex gap-6">
-                        <div class="w-6 h-6 rounded-full bg-blue-500 border-4 border-white shadow-sm flex-shrink-0 mt-1"></div>
-                        <div class="bg-gray-50/80 rounded-2xl p-4 w-full border border-gray-100">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-bold text-gray-800">Route Calculated</span>
-                                <span class="text-[10px] font-mono text-gray-400">12 mins ago</span>
-                            </div>
-                            <p class="text-xs text-gray-500">Fleet #02 en route to <span class="font-bold text-teal-600">GULSHAN MAX ADN</span>. ETA 45 mins.</p>
+                        <div class="bg-gray-50 rounded-2xl p-5 border border-gray-200">
+                            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Generated Bill</div>
+                            <div id="kpi-gen" class="text-xl font-mono font-bold text-gray-800">৳ 0</div>
+                        </div>
+                        <div class="bg-teal-50 rounded-2xl p-5 border border-teal-200">
+                            <div class="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-1">Total Received Amount</div>
+                            <div id="kpi-rec" class="text-xl font-mono font-bold text-teal-800">৳ 0</div>
+                        </div>
+                        <div class="bg-orange-50 rounded-2xl p-5 border border-orange-200">
+                            <div class="text-[10px] font-bold text-orange-700 uppercase tracking-widest mb-1">Total Due / Pending</div>
+                            <div id="kpi-due" class="text-xl font-mono font-bold text-orange-800">৳ 0</div>
                         </div>
                     </div>
 
-                    <div class="relative z-10 flex gap-6">
-                        <div class="w-6 h-6 rounded-full bg-yellow-500 border-4 border-white shadow-sm flex-shrink-0 mt-1"></div>
-                        <div class="bg-gray-50/80 rounded-2xl p-4 w-full border border-gray-100">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-sm font-bold text-gray-800">System Sync</span>
-                                <span class="text-[10px] font-mono text-gray-400">1 hour ago</span>
-                            </div>
-                            <p class="text-xs text-gray-500">Franchise Data from Excel synced with Google Sheets Backend.</p>
+                    <div class="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col shadow-sm">
+                        <div class="grid grid-cols-8 gap-4 p-4 bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-600 uppercase tracking-widest shrink-0">
+                            <div class="col-span-1">Franchise</div>
+                            <div class="col-span-1">Building</div>
+                            <div class="col-span-1">Flat</div>
+                            <div class="col-span-1 text-right">Consumption</div>
+                            <div class="col-span-1 text-right">Total Bill</div>
+                            <div class="col-span-1 text-right">Received</div>
+                            <div class="col-span-1 text-right">Due</div>
+                            <div class="col-span-1 text-center">Action</div>
                         </div>
+                        <div id="billing-tbody" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- ================= USER / SETTINGS VIEW ================= -->
-            <div id="view-user" class="view-panel view-hidden w-full max-w-sm bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-8 shadow-2xl mx-auto pointer-events-auto">
-                <div class="flex flex-col items-center text-center">
-                    <div class="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                        <!-- Placeholder User Avatar -->
-                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D9488&color=fff&size=128" alt="Admin" class="w-full h-full object-cover"/>
-                    </div>
-                    <h2 class="text-xl font-bold text-gray-800">Admin Dispatcher</h2>
-                    <p class="text-[10px] font-bold text-teal-600 uppercase tracking-widest mt-1 mb-6">Master Control</p>
+            <!-- ================= VIEW 4: USER & ROLES ================= -->
+            <div id="view-user" class="view-panel view-hidden w-full max-w-sm bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl pointer-events-auto self-end mt-auto flex flex-col">
+                <div class="flex justify-end p-4 pb-0">
+                    <button onclick="minimizeAllViews()" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+                        <i data-lucide="minimize-2" class="w-4 h-4"></i>
+                    </button>
                 </div>
-
-                <div class="space-y-3">
-                    <button class="w-full p-4 bg-gray-50 hover:bg-white rounded-2xl flex items-center justify-between border border-gray-100 hover:border-teal-200 transition-all group">
-                        <span class="text-sm font-bold text-gray-700 flex items-center gap-3">
-                            <i data-lucide="settings" class="text-gray-400 group-hover:text-teal-600 w-5 h-5 transition-colors"></i> System Preferences
-                        </span>
-                        <i data-lucide="chevron-right" class="text-gray-300 w-4 h-4"></i>
-                    </button>
-                    <button class="w-full p-4 bg-gray-50 hover:bg-white rounded-2xl flex items-center justify-between border border-gray-100 hover:border-teal-200 transition-all group">
-                        <span class="text-sm font-bold text-gray-700 flex items-center gap-3">
-                            <i data-lucide="bell" class="text-gray-400 group-hover:text-teal-600 w-5 h-5 transition-colors"></i> Alert Configurations
-                        </span>
-                        <i data-lucide="chevron-right" class="text-gray-300 w-4 h-4"></i>
-                    </button>
-                    <button class="w-full p-4 bg-red-50 hover:bg-red-100 rounded-2xl flex items-center justify-center border border-transparent transition-all mt-4 text-red-600 font-bold text-sm">
-                        <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Terminate Session
-                    </button>
+                <div class="p-8 pt-2 text-center">
+                    <div class="w-24 h-24 rounded-full bg-teal-100 border-4 border-white shadow-lg mb-4 flex items-center justify-center mx-auto">
+                        <i data-lucide="user" class="w-10 h-10 text-teal-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Profile Settings</h2>
+                    <p class="text-[10px] font-bold text-teal-600 uppercase tracking-widest mt-1 mb-6">Access Control</p>
+                    
+                    <div class="space-y-4 text-left">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Current Active Role</label>
+                            <select id="role-selector" onchange="changeUserRole(this.value)" class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-100">
+                                <option value="DISTRIBUTOR">Distributor Manager</option>
+                                <option value="ADMIN">System Administrator</option>
+                            </select>
+                            <p class="text-[10px] text-gray-400 ml-1">Admins can override past readings and inject custom Map Data.</p>
+                        </div>
+                        <button class="w-full p-4 bg-red-50 hover:bg-red-100 rounded-2xl flex items-center justify-center transition-all mt-4 text-red-600 font-bold text-sm">
+                            <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Secure Logout
+                        </button>
+                    </div>
                 </div>
             </div>
 
         </div>
+
+        <!-- ================= PAYMENT MODAL ================= -->
+        <div id="payment-modal" class="fixed inset-0 z-[9999] modal-backdrop flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+            <div class="bg-white w-full max-w-md rounded-[30px] shadow-2xl border border-gray-200 p-8 transform scale-95 transition-transform duration-300" id="payment-modal-box">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">Receive Payment</h3>
+                        <p id="modal-context" class="text-xs text-gray-500 mt-1">Asa Tower - Flat A-1</p>
+                    </div>
+                    <button onclick="closePaymentModal()" class="p-2 bg-gray-50 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="space-y-4 mb-8">
+                    <div class="p-4 bg-orange-50 rounded-xl border border-orange-100 flex justify-between items-center">
+                        <span class="text-xs font-bold text-orange-800 uppercase tracking-widest">Current Due</span>
+                        <span id="modal-due" class="text-lg font-mono font-bold text-orange-600">৳ 0</span>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Received By (Manager Name)</label>
+                        <input id="modal-receiver" type="text" placeholder="e.g. Hasan" class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none"/>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-teal-600 uppercase ml-1">Amount Receiving (BDT)</label>
+                        <input id="modal-amount" type="number" placeholder="0" class="px-4 py-3 bg-white border-2 border-teal-200 rounded-xl focus:outline-none text-lg font-mono font-bold text-teal-800"/>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closePaymentModal()" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200">Cancel</button>
+                    <button onclick="confirmPayment()" class="flex-1 py-3 bg-teal-600 text-white rounded-xl font-bold shadow-lg hover:bg-teal-700 flex justify-center items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4"></i> Confirm</button>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // --- GOOGLE APPS SCRIPT WEB APP URL ---
-        // Replace this string with your deployed Google Apps Script URL.
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_YOUR_WEB_APP_ID/exec'; 
+        // ======================= ROLE LOGIC =======================
+        let currentUserRole = "DISTRIBUTOR";
 
-        // --- 1. FULL PROJECT DATA WITH BOUNDING POLYGONS ---
+        function changeUserRole(role) {
+            currentUserRole = role;
+            const badge = document.getElementById('role-badge');
+            if(badge) badge.textContent = role;
+            
+            const prevInput = document.getElementById('form-prev');
+            const adminBadge = document.getElementById('admin-override-badge');
+            const geoJsonBlock = document.getElementById('geojson-setup-block');
+            const roleTagManagement = document.getElementById('role-tag-management');
+
+            if(role === "DISTRIBUTOR") {
+                if(prevInput) { prevInput.readOnly = true; prevInput.classList.replace('bg-white', 'bg-gray-50'); }
+                if(adminBadge) adminBadge.classList.add('hidden');
+                const plock = document.getElementById('prev-lock-icon');
+                if(plock) plock.style.display = 'inline-block';
+                if(geoJsonBlock) geoJsonBlock.classList.add('hidden');
+                if(roleTagManagement) roleTagManagement.innerHTML = `<i data-lucide="lock" class="w-3 h-3"></i> Distributor Access`;
+            } else {
+                if(prevInput) { prevInput.readOnly = false; prevInput.classList.replace('bg-gray-50', 'bg-white'); }
+                if(adminBadge) adminBadge.classList.remove('hidden');
+                const plock = document.getElementById('prev-lock-icon');
+                if(plock) plock.style.display = 'none';
+                if(geoJsonBlock) geoJsonBlock.classList.remove('hidden');
+                if(roleTagManagement) roleTagManagement.innerHTML = `<i data-lucide="unlock" class="w-3 h-3"></i> Admin Override Access`;
+            }
+            lucide.createIcons();
+        }
+
+        // ======================= MOCK DATABASE & CSV LOGIC =======================
+        let mockDB = [
+            { id: 1, franchise: "Jolshiri Hub", building: "Asa Tower", flat: "A-1", cons: 45, bill: 1350, paid: 0 },
+            { id: 2, franchise: "Jolshiri Hub", building: "Asa Tower", flat: "A-2", cons: 30, bill: 900, paid: 900 },
+            { id: 3, franchise: "Jolshiri Hub", building: "Zoita", flat: "101", cons: 55, bill: 1650, paid: 500 },
+            { id: 4, franchise: "Khilkhet Depot", building: "Noor Shelter", flat: "G-B", cons: 40, bill: 1200, paid: 0 }
+        ];
+        let activePaymentId = null;
+
+        function exportCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID,Franchise,Building,Flat,Consumption,Bill,Paid,Due\n";
+            mockDB.forEach(row => {
+                let rowStr = `${row.id},${row.franchise},${row.building},${row.flat},${row.cons},${row.bill},${row.paid},${row.bill - row.paid}`;
+                csvContent += rowStr + "\n";
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "URBN_GAZ_Billing_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function handleFranchiseImport(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                alert("Imported " + file.name + " into database memory.");
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // ======================= MAP & LOCATION DATA =======================
         const ALL_SECTORS = [
             {
                 sector: "JOLSHIRI ABASHON",
-                coords: [23.8223, 90.4873], 
-                polygon: [[23.828, 90.482], [23.828, 90.491], [23.818, 90.491], [23.818, 90.482]],
+                coords: [23.808, 90.502], 
+                polygon: [
+                    [23.79587, 90.50538], [23.79464, 90.50703], [23.79457, 90.50987], [23.79240, 90.51405],
+                    [23.79904, 90.52107], [23.80402, 90.52123], [23.81131, 90.52075], [23.81787, 90.51429],
+                    [23.81780, 90.50349], [23.81932, 90.50088], [23.81924, 90.49836], [23.81838, 90.49828],
+                    [23.81859, 90.49647], [23.82040, 90.49521], [23.81975, 90.49323], [23.81888, 90.49331],
+                    [23.81679, 90.49315], [23.81607, 90.49371], [23.81607, 90.49505], [23.81528, 90.49513],
+                    [23.81528, 90.49339], [23.81607, 90.49268], [23.81715, 90.49213], [23.81693, 90.49024],
+                    [23.81571, 90.49039], [23.81535, 90.48803], [23.81556, 90.48606], [23.81441, 90.48566],
+                    [23.81232, 90.48606], [23.81023, 90.48543], [23.80907, 90.48527], [23.80799, 90.48558],
+                    [23.80626, 90.48606], [23.80481, 90.48590], [23.80481, 90.48866], [23.80481, 90.49528],
+                    [23.80424, 90.49891], [23.80251, 90.49907], [23.79926, 90.49986], [23.79673, 90.50214]
+                ],
                 stats: { status: "Active Focus", capacity: "85%" },
                 projects: [
-                    { name: "ZOITA", loc: "SEC-12, JOLSHIRI", lat: 23.823, lng: 90.488 },
-                    { name: "MAHFUZ ALAM RESIDENCE", loc: "SEC-16, JOLSHIRI", lat: 23.824, lng: 90.486 },
-                    { name: "SURAIYA DREAM", loc: "SEC-16, JOLSHIRI", lat: 23.821, lng: 90.485 },
-                    { name: "ASA TOWER", loc: "SEC-11, JOLSHIRI", lat: 23.820, lng: 90.489 },
-                    { name: "SHOKRANA NIBASH", loc: "SEC-16, JOLSHIRI", lat: 23.825, lng: 90.484 },
-                    { name: "AMINUL HOQUE NIBASH", loc: "SEC-16, JOLSHIRI", lat: 23.826, lng: 90.487 }
+                    { name: "ZOITA", loc: "SEC-12", lat: 23.823, lng: 90.488, flats: 24, meters: 24, priority: "Urgent" },
+                    { name: "MAHFUZ ALAM RES", loc: "SEC-16", lat: 23.824, lng: 90.486, flats: 12, meters: 10, priority: "3 Days" },
+                    { name: "SURAIYA DREAM", loc: "SEC-16", lat: 23.821, lng: 90.485, flats: 8, meters: 8, priority: "7 Days" },
+                    { name: "ASA TOWER", loc: "SEC-11", lat: 23.820, lng: 90.489, flats: 30, meters: 28, priority: "Urgent" },
+                    { name: "SHOKRANA NIBASH", loc: "SEC-16", lat: 23.825, lng: 90.484, flats: 15, meters: 15, priority: "3 Days" },
+                    { name: "AMINUL HOQUE", loc: "SEC-16", lat: 23.826, lng: 90.487, flats: 10, meters: 9, priority: "7 Days" }
                 ]
             },
             {
                 sector: "KHILKHET",
                 coords: [23.8315, 90.4178],
-                polygon: [[23.837, 90.413], [23.837, 90.422], [23.828, 90.422], [23.828, 90.413]],
+                polygon: [[23.840, 90.412], [23.842, 90.420], [23.838, 90.428], [23.830, 90.430], [23.824, 90.425], [23.822, 90.418], [23.825, 90.410], [23.832, 90.408]],
                 stats: { status: "Stable Growth", capacity: "62%" },
                 projects: [
-                    { name: "NOOR SHELTER", loc: "MODDHOPARA, KHILKHET", lat: 23.832, lng: 90.418 },
-                    { name: "MIZAN HOUSE", loc: "UTTARPARA, KHILKHET", lat: 23.834, lng: 90.416 },
-                    { name: "NF TOWER", loc: "BARUA, KHILKHET", lat: 23.835, lng: 90.415 },
-                    { name: "NIZAMUDDIN HOUSE", loc: "MALEK MATABBOR, KHILKHET", lat: 23.830, lng: 90.420 }
+                    { name: "NOOR SHELTER", loc: "MODDHOPARA", lat: 23.832, lng: 90.418, flats: 20, meters: 18, priority: "3 Days" },
+                    { name: "MIZAN HOUSE", loc: "UTTARPARA", lat: 23.834, lng: 90.416, flats: 15, meters: 15, priority: "Urgent" },
+                    { name: "NF TOWER", loc: "BARUA", lat: 23.835, lng: 90.415, flats: 25, meters: 20, priority: "7 Days" },
+                    { name: "NIZAMUDDIN HSE", loc: "MALEK MATABBOR", lat: 23.830, lng: 90.420, flats: 10, meters: 10, priority: "Urgent" }
                 ]
             },
             {
                 sector: "DAKKHIN KHAN",
                 coords: [23.8447, 90.4130],
-                polygon: [[23.847, 90.411], [23.847, 90.415], [23.843, 90.415], [23.843, 90.411]],
+                polygon: [[23.855, 90.405], [23.858, 90.415], [23.852, 90.425], [23.845, 90.428], [23.838, 90.420], [23.835, 90.410], [23.840, 90.402], [23.848, 90.400]],
                 stats: { status: "New Expansion", capacity: "40%" },
                 projects: [
-                    { name: "SOTOTA TOWER", loc: "KAWLAR, DAKKHIN KHAN", lat: 23.845, lng: 90.413 }
+                    { name: "SOTOTA TOWER", loc: "KAWLAR", lat: 23.845, lng: 90.413, flats: 40, meters: 35, priority: "Urgent" }
                 ]
             },
             {
                 sector: "GULSHAN / MOHAKHALI",
                 coords: [23.7925, 90.4078],
-                polygon: [[23.795, 90.396], [23.795, 90.412], [23.783, 90.412], [23.783, 90.396]],
+                polygon: [[23.805, 90.408], [23.802, 90.415], [23.792, 90.418], [23.782, 90.415], [23.775, 90.408], [23.772, 90.400], [23.778, 90.392], [23.788, 90.390], [23.798, 90.395], [23.802, 90.402]],
                 stats: { status: "Premium Tier", capacity: "92%" },
                 projects: [
-                    { name: "MAX ADN", loc: "GULSHAN", lat: 23.793, lng: 90.410 },
-                    { name: "MAX SHORIF", loc: "MOHAKHALI DOHS", lat: 23.785, lng: 90.398 }
+                    { name: "MAX ADN", loc: "GULSHAN", lat: 23.793, lng: 90.410, flats: 60, meters: 60, priority: "3 Days" },
+                    { name: "MAX SHORIF", loc: "MOHAKHALI DOHS", lat: 23.785, lng: 90.398, flats: 45, meters: 45, priority: "7 Days" }
                 ]
             },
             {
                 sector: "UTTARA",
                 coords: [23.8759, 90.3795],
-                polygon: [[23.878, 90.378], [23.878, 90.382], [23.874, 90.382], [23.874, 90.378]],
+                polygon: [[23.888, 90.380], [23.885, 90.395], [23.875, 90.402], [23.862, 90.398], [23.858, 90.385], [23.860, 90.375], [23.870, 90.368], [23.880, 90.370]],
                 stats: { status: "Active Delivery", capacity: "78%" },
                 projects: [
-                    { name: "MUZAFFAR GARDEN CITY", loc: "SEC-10, UTTARA", lat: 23.876, lng: 90.380 }
+                    { name: "MUZAFFAR GARDEN", loc: "SEC-10", lat: 23.876, lng: 90.380, flats: 50, meters: 48, priority: "Urgent" }
                 ]
             }
         ];
 
-        // --- 2. STATE MANAGEMENT ---
-        let currentIdx = 0;
-        let map = null;
-        let markers = [];
-        let currentPolygon = null;
-        let isNavigatingRoute = false; 
-        const VIEW_NAMES = ['dashboard', 'admin', 'activity', 'user'];
+        let currentIdx = 0, map = null, markers = [], currentPolygon = null;
+        let isNavigatingRoute = false, trafficEnabled = false, alertsEnabled = false;
+        let optRouteLayer = null;
+        const VIEW_NAMES = ['dashboard', 'admin', 'billing', 'user'];
+        let currentActiveView = 'dashboard';
 
-        // --- 3. INITIALIZATION & SPLASH SCREEN ---
+        // ======================= INITIALIZATION =======================
         document.addEventListener("DOMContentLoaded", () => {
             lucide.createIcons();
             populateSectorDropdown();
+            renderBillingTable();
+            changeUserRole("DISTRIBUTOR");
             
-            // Start Loading Splash Logic
-            const progressBar = document.getElementById('loading-progress');
+            setTimeout(() => { document.getElementById('loading-progress').style.width = '100%'; }, 100);
             setTimeout(() => {
-                progressBar.style.width = '100%'; // Animate bar to 100%
-            }, 100);
-
-            // Wait 2.2 seconds to simulate loading, then initialize map and hide splash
-            setTimeout(() => {
-                initMap();
-                renderDashboard();
-                
+                initMap(); renderDashboard();
                 const splash = document.getElementById('splash-screen');
-                splash.classList.add('fade-out'); // Trigger CSS opacity transition
-                
-                // Physically remove splash from DOM after transition completes
-                setTimeout(() => {
-                    splash.remove();
-                }, 1000);
-
-            }, 2200);
+                if(splash) {
+                    splash.classList.add('fade-out'); 
+                    setTimeout(() => { splash.remove(); }, 1000);
+                }
+            }, 1800);
             
-            // Handle window resizing cleanly
-            window.addEventListener('resize', () => {
-                if (map) map.invalidateSize();
-            });
-
-            // Close Dropdown when clicking outside
-            document.addEventListener('click', () => {
-                closeSectorDropdown();
-            });
+            window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+            document.addEventListener('click', () => { closeSectorDropdown(); });
         });
 
-        // --- CUSTOM DROPDOWN SELECTOR ---
-        function populateSectorDropdown() {
-            const dd = document.getElementById('sector-dropdown');
-            dd.innerHTML = '';
-            ALL_SECTORS.forEach((s, i) => {
-                dd.innerHTML += `
-                    <button onclick="goToSector(${i})" class="w-full text-left px-4 py-3 hover:bg-teal-50 hover:text-teal-700 rounded-xl text-xs font-bold text-gray-600 transition-colors flex items-center justify-between group">
-                        ${s.sector}
-                        <i data-lucide="arrow-right" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                    </button>
-                `;
+        // ======================= BILLING SPREADSHEET =======================
+        function renderBillingTable() {
+            const filterEl = document.getElementById('filter-franchise');
+            const tbody = document.getElementById('billing-tbody');
+            if(!filterEl || !tbody) return;
+
+            const filterVal = filterEl.value;
+            tbody.innerHTML = '';
+            let tVol = 0, tGen = 0, tRec = 0, tDue = 0;
+            const filteredData = filterVal === "ALL" ? mockDB : mockDB.filter(d => d.franchise === filterVal);
+
+            filteredData.forEach(row => {
+                const due = row.bill - row.paid;
+                tVol += row.cons; tGen += row.bill; tRec += row.paid; tDue += due;
+                const isPaid = due <= 0;
+                const statusHtml = isPaid ? `<span class="text-teal-600"><i data-lucide="check-circle" class="w-4 h-4 inline"></i></span>` : `<button onclick="openPaymentModal(${row.id})" class="px-3 py-1 bg-gray-800 text-white rounded text-[10px] hover:bg-black">Pay</button>`;
+                
+                tbody.innerHTML += `<div class="grid grid-cols-8 gap-4 p-3 bg-white rounded-xl border ${isPaid ? 'border-gray-100' : 'border-orange-200 border-l-4 border-l-orange-400'} items-center text-sm shadow-sm hover:shadow-md transition-shadow">
+                    <div class="col-span-1 font-bold text-gray-700 truncate" title="${row.franchise}">${row.franchise}</div>
+                    <div class="col-span-1 text-gray-600 truncate">${row.building}</div>
+                    <div class="col-span-1 font-mono text-xs bg-gray-50 px-2 py-1 rounded w-max">${row.flat}</div>
+                    <div class="col-span-1 text-right font-mono text-gray-500">${row.cons}</div>
+                    <div class="col-span-1 text-right font-mono font-bold text-gray-800">৳ ${row.bill}</div>
+                    <div class="col-span-1 text-right font-mono text-teal-600 font-bold">৳ ${row.paid}</div>
+                    <div class="col-span-1 text-right font-mono ${due > 0 ? 'text-orange-600 font-bold' : 'text-gray-400'}">৳ ${due}</div>
+                    <div class="col-span-1 text-center">${statusHtml}</div></div>`;
             });
+            const kpiVol = document.getElementById('kpi-vol'); if(kpiVol) kpiVol.textContent = `${tVol} Units`; 
+            const kpiGen = document.getElementById('kpi-gen'); if(kpiGen) kpiGen.textContent = `৳ ${tGen.toLocaleString()}`;
+            const kpiRec = document.getElementById('kpi-rec'); if(kpiRec) kpiRec.textContent = `৳ ${tRec.toLocaleString()}`; 
+            const kpiDue = document.getElementById('kpi-due'); if(kpiDue) kpiDue.textContent = `৳ ${tDue.toLocaleString()}`;
             lucide.createIcons();
         }
 
-        function toggleSectorDropdown(e) {
-            e.stopPropagation();
-            if(isNavigatingRoute) return;
-            const dd = document.getElementById('sector-dropdown');
-            if(dd.classList.contains('hidden')) {
-                dd.classList.remove('hidden');
-                setTimeout(() => {
-                    dd.classList.remove('opacity-0', 'scale-95');
-                    dd.classList.add('opacity-100', 'scale-100');
-                }, 10);
-            } else {
-                closeSectorDropdown();
-            }
-        }
-
-        function closeSectorDropdown() {
-            const dd = document.getElementById('sector-dropdown');
-            if(!dd) return;
-            dd.classList.remove('opacity-100', 'scale-100');
-            dd.classList.add('opacity-0', 'scale-95');
-            setTimeout(() => {
-                dd.classList.add('hidden');
-            }, 200);
-        }
-
-        // Lock / Unlock UI during animation
-        function lockUI() {
-            const prevW = document.getElementById('btn-prev-wrapper');
-            const nextW = document.getElementById('btn-next-wrapper');
-            const ddBtn = document.getElementById('btn-dropdown');
-            if(prevW) prevW.classList.add('opacity-50', 'pointer-events-none');
-            if(nextW) nextW.classList.add('opacity-50', 'pointer-events-none');
-            if(ddBtn) ddBtn.classList.add('opacity-50', 'pointer-events-none');
-        }
-
-        function unlockUI() {
-            const prevW = document.getElementById('btn-prev-wrapper');
-            const nextW = document.getElementById('btn-next-wrapper');
-            const ddBtn = document.getElementById('btn-dropdown');
-            if(prevW) prevW.classList.remove('opacity-50', 'pointer-events-none');
-            if(nextW) nextW.classList.remove('opacity-50', 'pointer-events-none');
-            if(ddBtn) ddBtn.classList.remove('opacity-50', 'pointer-events-none');
-        }
-
-        // --- 4. MAP LOGIC & RENDERING ---
+        // ======================= MAP MODULE =======================
         function initMap() {
+            const mapContainer = document.getElementById('map-container');
+            if(!mapContainer) return;
+
             map = L.map('map-container', {
-                zoomControl: false,
-                attributionControl: false,
-                dragging: true,
-                scrollWheelZoom: true,
-                doubleClickZoom: true,
-                touchZoom: true
+                zoomControl: false, attributionControl: false, dragging: true,
+                scrollWheelZoom: true, doubleClickZoom: true, touchZoom: true
             }).setView(ALL_SECTORS[0].coords, 14);
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19
-            }).addTo(map);
-
-            L.control.zoom({ position: 'bottomright' }).addTo(map);
-
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map); 
             updateMapFeatures();
         }
 
-        function getDotIcon(isHighlighted) {
+        function toggleTrafficLayer() {
+            trafficEnabled = !trafficEnabled;
+            const container = document.getElementById('map-container'); const indicator = document.getElementById('traffic-indicator');
+            if(!container || !indicator) return;
+            if(trafficEnabled) { container.classList.add('map-traffic-mode'); indicator.classList.replace('bg-gray-300', 'bg-red-500'); indicator.classList.add('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); }
+            else { container.classList.remove('map-traffic-mode'); indicator.classList.replace('bg-red-500', 'bg-gray-300'); indicator.classList.remove('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); }
+        }
+
+        function togglePriorityAlerts() {
+            alertsEnabled = !alertsEnabled;
+            const btn = document.getElementById('btn-priority');
+            const icon = document.getElementById('icon-priority');
+            
+            if(alertsEnabled) {
+                btn.classList.add('border-red-300', 'bg-red-50');
+                icon.classList.replace('text-gray-400', 'text-red-500');
+            } else {
+                btn.classList.remove('border-red-300', 'bg-red-50');
+                icon.classList.replace('text-red-500', 'text-gray-400');
+            }
+            updateMapFeatures(); // Re-render markers with pulses
+        }
+
+        function calculateAdvancedRoute() {
+            if(!map) return;
+            const btn = document.getElementById('btn-route-plan');
+            
+            if(optRouteLayer) {
+                map.removeLayer(optRouteLayer);
+                optRouteLayer = null;
+                btn.classList.remove('border-teal-400', 'bg-teal-50');
+                return;
+            }
+
+            btn.classList.add('border-teal-400', 'bg-teal-50');
+            
+            // Collect all "Urgent" projects across all sectors
+            let urgentPoints = [];
+            ALL_SECTORS.forEach(s => {
+                s.projects.forEach(p => {
+                    if(p.priority === "Urgent") urgentPoints.push([p.lat, p.lng]);
+                });
+            });
+
+            if(urgentPoints.length < 2) {
+                alert("Not enough urgent locations to form a route plan.");
+                btn.classList.remove('border-teal-400', 'bg-teal-50');
+                return;
+            }
+
+            // Draw a mock optimized route connecting them
+            optRouteLayer = L.polyline(urgentPoints, {
+                color: '#F59E0B', weight: 4, opacity: 0.8, className: 'opt-route-trail'
+            }).addTo(map);
+            
+            map.flyToBounds(optRouteLayer.getBounds(), { padding: [50, 50], duration: 1.5 });
+        }
+
+        function getDotIcon(isHighlighted, priorityStr = "") {
+            let color = "#0D9488"; // Teal default
+            let pulseClass = "";
+            
+            if(priorityStr === "Urgent") {
+                color = "#EF4444"; // Red
+                if(alertsEnabled) pulseClass = "marker-pulse-urgent";
+            } else if (priorityStr === "3 Days") {
+                color = "#F59E0B"; // Orange
+            }
+            
+            const size = isHighlighted ? 16 : 12;
             return L.divIcon({
                 className: 'custom-div-icon',
-                html: isHighlighted 
-                    ? `<div class="pulse-icon"></div>`
-                    : `<div style="width: 12px; height: 12px; background-color: #0D9488; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 8px rgba(13,148,136,0.5);"></div>`,
-                iconSize: isHighlighted ? [16, 16] : [12, 12],
-                iconAnchor: isHighlighted ? [8, 8] : [6, 6]
+                html: `<div class="${pulseClass}" style="width:${size}px;height:${size}px;background:${color};border-radius:50%;border:2px solid white;box-shadow:0 0 8px ${color}80;"></div>`,
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
             });
         }
 
         function updateMapFeatures() {
+            if(!map) return;
             const sector = ALL_SECTORS[currentIdx];
-            
             if (currentPolygon) map.removeLayer(currentPolygon);
-            currentPolygon = L.polygon(sector.polygon, {
-                color: '#0D9488', weight: 2, fillColor: '#0D9488', fillOpacity: 0.1, dashArray: '5, 5'
-            }).addTo(map);
+            
+            const polyStyle = { color: '#EA580C', weight: 3, fillColor: '#EA580C', fillOpacity: 0.05, dashArray: '5, 8', lineCap: 'round', lineJoin: 'round', className: 'geo-polygon' };
+            currentPolygon = L.polygon(sector.polygon, polyStyle).addTo(map);
 
             markers.forEach(m => map.removeLayer(m.marker));
             markers = [];
 
             sector.projects.forEach((proj, idx) => {
-                const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false) }).addTo(map);
-                marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -5] });
+                const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false, proj.priority) }).addTo(map);
+                
+                // Advanced Card Popup
+                let badgeColor = proj.priority === "Urgent" ? "bg-red-100 text-red-700" : (proj.priority === "3 Days" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700");
+                const popupContent = `
+                    <div class="p-4 bg-white/95 w-56">
+                        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Building Profile</div>
+                        <h4 class="text-base font-bold text-gray-800 leading-tight mb-2">${proj.name}</h4>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                <div class="text-[8px] text-gray-500 uppercase">Total Flats</div>
+                                <div class="font-mono font-bold text-sm">${proj.flats}</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                <div class="text-[8px] text-gray-500 uppercase">Active Meters</div>
+                                <div class="font-mono font-bold text-sm">${proj.meters}</div>
+                            </div>
+                        </div>
+                        <div class="text-[9px] font-bold text-gray-500 uppercase mb-1">Cylinder Priority Level</div>
+                        <div class="px-2 py-1 rounded text-[10px] font-bold uppercase w-max ${badgeColor}">${proj.priority} Reserve</div>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent, { closeButton: false, offset: [0, -5] });
+                
+                // Hover tooltip fallback
+                marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -10] });
+                
                 markers.push({ marker, proj, idx });
             });
         }
 
-        // --- 5. ROAD ROUTING & ANIMATIONS ---
-        function navigateSector(direction) {
-            const targetIdx = (currentIdx + direction + ALL_SECTORS.length) % ALL_SECTORS.length;
-            goToSector(targetIdx);
-        }
-
+        function navigateSector(dir) { goToSector((currentIdx + dir + ALL_SECTORS.length) % ALL_SECTORS.length); }
         async function goToSector(targetIdx) {
-            if (isNavigatingRoute || currentIdx === targetIdx) return; 
-            isNavigatingRoute = true;
-            
-            lockUI();
-            closeSectorDropdown();
+            if (isNavigatingRoute || currentIdx === targetIdx || !map) return; 
+            isNavigatingRoute = true; closeSectorDropdown();
 
             const prevSector = ALL_SECTORS[currentIdx];
-            
             currentIdx = targetIdx;
             const newSector = ALL_SECTORS[currentIdx];
 
-            showRoutingUI(newSector.sector);
+            const hn = document.getElementById('dashboard-sector-name'); if(hn) hn.textContent = `ROUTING...`;
+            const pl = document.getElementById('project-list'); if(pl) pl.innerHTML = `<div class="p-8 flex items-center justify-center text-teal-600"><i data-lucide="loader-2" class="animate-spin mr-2"></i> Fetching Route</div>`;
+            lucide.createIcons();
 
             if (currentPolygon) map.removeLayer(currentPolygon);
-            markers.forEach(m => map.removeLayer(m.marker));
-            markers = [];
+            markers.forEach(m => map.removeLayer(m.marker)); markers = [];
 
             let routePts = [];
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3500);
-
             try {
-                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${prevSector.coords[1]},${prevSector.coords[0]};${newSector.coords[1]},${newSector.coords[0]}?overview=full&geometries=geojson`;
-                const response = await fetch(osrmUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${prevSector.coords[1]},${prevSector.coords[0]};${newSector.coords[1]},${newSector.coords[0]}?overview=full&geometries=geojson`);
                 const data = await response.json();
                 routePts = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            } catch(e) {
-                clearTimeout(timeoutId);
-                console.warn("Routing API fallback.", e);
-                routePts = [prevSector.coords, newSector.coords];
-            }
+            } catch(e) { routePts = [prevSector.coords, newSector.coords]; }
 
-            const routeBounds = L.latLngBounds(routePts);
-            map.flyToBounds(routeBounds, { padding: [100, 100], duration: 1.5 });
-
-            setTimeout(() => {
-                playDramaticRouteAnimation(routePts, newSector);
-            }, 1600);
+            map.flyToBounds(L.latLngBounds(routePts), { padding: [100, 100], duration: 1.0 });
+            setTimeout(() => { playDramaticRouteAnimation(routePts, newSector); }, 1100); 
         }
 
         function playDramaticRouteAnimation(pts, targetSector) {
-            let totalDist = 0;
-            const dists = [0];
-            for(let i = 1; i < pts.length; i++){
-                totalDist += map.distance(pts[i-1], pts[i]);
-                dists.push(totalDist);
-            }
+            if(!map) return;
+            let totalDist = 0; const dists = [0];
+            for(let i = 1; i < pts.length; i++){ totalDist += map.distance(pts[i-1], pts[i]); dists.push(totalDist); }
+            let duration = Math.max(1200, Math.min((totalDist / 1000) * 150, 2500));
 
-            let duration = (totalDist / 1000) * 300; 
-            duration = Math.max(2500, Math.min(duration, 4500));
-
-            const pointerIcon = L.divIcon({
-                className: 'pointer-vehicle-container',
-                html: '<div class="dramatic-pointer"></div>',
-                iconSize: [22, 22], iconAnchor: [11, 11]
-            });
+            const pointerIcon = L.divIcon({ className: 'pointer-vehicle-container', html: '<div class="dramatic-pointer"></div>', iconSize: [22, 22], iconAnchor: [11, 11] });
             const pointerMarker = L.marker(pts[0], {icon: pointerIcon, zIndexOffset: 1000}).addTo(map);
-            
-            const trail = L.polyline([], {
-                color: '#0D9488', weight: 5, opacity: 0.9, className: 'glowing-trail'
-            }).addTo(map);
+            const trail = L.polyline([], { color: '#0D9488', weight: 5, opacity: 0.9, className: 'glowing-trail' }).addTo(map);
 
             const startTime = performance.now();
 
             function frame(time) {
                 const elapsed = time - startTime;
-                let progress = elapsed / duration;
-                if (progress > 1) progress = 1;
-
+                let progress = Math.min(elapsed / duration, 1);
                 const targetDist = progress * totalDist;
                 
-                let i = 1;
-                while(i < dists.length && dists[i] < targetDist) i++;
+                let i = 1; while(i < dists.length && dists[i] < targetDist) i++;
                 if (i >= dists.length) i = dists.length - 1;
 
-                const segmentProgress = (targetDist - dists[i-1]) / (dists[i] - dists[i-1] || 1);
-                const lat = pts[i-1][0] + (pts[i][0] - pts[i-1][0]) * segmentProgress;
-                const lng = pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * segmentProgress;
+                const segProg = (targetDist - dists[i-1]) / (dists[i] - dists[i-1] || 1);
+                const lat = pts[i-1][0] + (pts[i][0] - pts[i-1][0]) * segProg;
+                const lng = pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * segProg;
 
-                const currentPos = [lat, lng];
-                pointerMarker.setLatLng(currentPos);
-                
-                const currentTrail = pts.slice(0, i);
-                currentTrail.push(currentPos);
-                trail.setLatLngs(currentTrail);
+                pointerMarker.setLatLng([lat, lng]);
+                const currTrail = pts.slice(0, i); currTrail.push([lat, lng]);
+                trail.setLatLngs(currTrail);
 
-                if (progress < 1) {
-                    requestAnimationFrame(frame);
-                } else {
-                    document.getElementById('header-sector-name').textContent = targetSector.sector;
-                    renderDashboard();
-                    updateMapFeatures();
-                    map.flyTo(targetSector.coords, 14, { duration: 1.0 });
-
+                if (progress < 1) requestAnimationFrame(frame);
+                else {
+                    renderDashboard(); updateMapFeatures(); 
+                    map.flyTo(targetSector.coords, 14, { duration: 0.8 });
                     isNavigatingRoute = false;
-                    unlockUI();
 
                     setTimeout(() => {
                         if(trail._path) trail._path.classList.add('fade-out');
                         if(pointerMarker._icon) pointerMarker._icon.classList.add('fade-out');
-                        
-                        setTimeout(() => {
-                            if(map.hasLayer(trail)) map.removeLayer(trail);
-                            if(map.hasLayer(pointerMarker)) map.removeLayer(pointerMarker);
-                        }, 1500); 
-                    }, 4000); 
+                        setTimeout(() => { if(map.hasLayer(trail)) map.removeLayer(trail); if(map.hasLayer(pointerMarker)) map.removeLayer(pointerMarker); }, 1000); 
+                    }, 2000); 
                 }
             }
             requestAnimationFrame(frame);
         }
 
         function selectProject(index) {
-            if(isNavigatingRoute) return;
+            if(isNavigatingRoute || !map) return;
             const sector = ALL_SECTORS[currentIdx];
             const p = sector.projects[index];
-            
             map.flyTo([p.lat, p.lng], 16, { duration: 1.2 });
-
+            
+            // Open popup logic
             markers.forEach(m => {
                 if (m.idx === index) {
-                    m.marker.setIcon(getDotIcon(true));
-                    m.marker.openTooltip();
+                    m.marker.setIcon(getDotIcon(true, m.proj.priority));
+                    m.marker.openPopup();
                 } else {
-                    m.marker.setIcon(getDotIcon(false));
-                    m.marker.closeTooltip();
-                }
-            });
-
-            document.querySelectorAll('.project-list-item').forEach((el, i) => {
-                if(i === index) {
-                    el.classList.add('border-teal-400', 'bg-white', 'shadow-md');
-                    el.classList.remove('border-white/50', 'bg-white/90');
-                } else {
-                    el.classList.remove('border-teal-400', 'bg-white', 'shadow-md');
-                    el.classList.add('border-white/50', 'bg-white/90');
+                    m.marker.setIcon(getDotIcon(false, m.proj.priority));
+                    m.marker.closePopup();
                 }
             });
         }
 
-        // --- 6. GOOGLE APPS SCRIPT FORM HANDLING ---
-        async function saveToGoogleSheet() {
-            // Get values from Admin Inputs
-            const name = document.getElementById('input-proj-name').value;
-            const sector = document.getElementById('input-proj-sector').value;
-            const lat = document.getElementById('input-proj-lat').value;
-            const lng = document.getElementById('input-proj-lng').value;
-            
-            const statusMsg = document.getElementById('save-status-msg');
-
-            // Basic Validation
-            if (!name || !sector || !lat || !lng) {
-                statusMsg.textContent = "Please fill in all coordinate data.";
-                statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
-                return;
-            }
-
-            const btn = document.getElementById('btn-save-project');
-            const originalHTML = btn.innerHTML;
-            
-            // UI Loading State
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-[18px] h-[18px] animate-spin"></i> Saving to Database...`;
-            btn.disabled = true;
-            lucide.createIcons();
-
-            // Prepare Data for Apps Script
-            const formData = new FormData();
-            formData.append('projectName', name);
-            formData.append('sector', sector);
-            formData.append('lat', lat);
-            formData.append('lng', lng);
-
-            try {
-                // Use POST with 'no-cors' mode which prevents CORS errors from Google's redirect
-                // The Apps Script MUST be deployed as a Web App (Execute as Me, Who has access: Anyone)
-                // And it needs a doPost(e) function to capture these parameters.
-                await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', 
-                    body: formData
-                });
-                
-                // Show Success State
-                btn.innerHTML = `<i data-lucide="check" class="w-[18px] h-[18px]"></i> Data Synchronized`;
-                btn.classList.replace('bg-teal-600', 'bg-green-600');
-                btn.classList.replace('hover:bg-teal-700', 'hover:bg-green-700');
-                
-                statusMsg.textContent = "Successfully logged to Google Sheets!";
-                statusMsg.className = "text-center mt-3 text-xs font-bold text-green-600 opacity-100 transition-opacity";
-                
-                // Clear fields
-                document.getElementById('input-proj-name').value = '';
-                document.getElementById('input-proj-sector').value = '';
-                document.getElementById('input-proj-lat').value = '';
-                document.getElementById('input-proj-lng').value = '';
-
-            } catch (error) {
-                console.error("Error saving data:", error);
-                statusMsg.textContent = "Error saving. Check console and URL.";
-                statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
-            } finally {
-                lucide.createIcons();
-                
-                // Reset Button after 4 seconds
-                setTimeout(() => {
-                    btn.innerHTML = originalHTML;
-                    btn.classList.replace('bg-green-600', 'bg-teal-600');
-                    btn.classList.replace('hover:bg-green-700', 'hover:bg-teal-700');
-                    btn.disabled = false;
-                    statusMsg.classList.replace('opacity-100', 'opacity-0');
-                    lucide.createIcons();
-                }, 4000);
-            }
+        // ======================= UI NAVIGATION =======================
+        function toggleSectorDropdown(e) {
+            e.stopPropagation(); const dd = document.getElementById('sector-dropdown');
+            if(!dd) return;
+            if(dd.classList.contains('hidden')) { dd.classList.remove('hidden'); setTimeout(() => { dd.classList.replace('opacity-0', 'opacity-100'); }, 10); } else closeSectorDropdown();
         }
-
-        // --- 7. UI HELPERS ---
-        function showRoutingUI(targetSectorName) {
-            document.getElementById('dashboard-sector-name').textContent = `ROUTING...`;
-            document.getElementById('dashboard-status').textContent = "In Transit";
-            document.getElementById('dashboard-capacity').textContent = "---";
-            document.getElementById('project-count').textContent = "0";
-            
-            // Clear the specific Prev/Next Labels temporarily during transition
-            document.getElementById('label-prev-sector').textContent = "---";
-            document.getElementById('label-next-sector').textContent = "---";
-
-            document.getElementById('project-list').innerHTML = `
-                <div class="p-8 flex flex-col items-center justify-center text-teal-600 font-bold opacity-80 h-32">
-                    <i data-lucide="loader-2" class="w-8 h-8 animate-spin mb-3"></i> 
-                    <span>Establishing Route to</span>
-                    <span class="text-xs text-gray-500 mt-1 uppercase">${targetSectorName}</span>
-                </div>
-            `;
-            lucide.createIcons();
+        function closeSectorDropdown() {
+            const dd = document.getElementById('sector-dropdown'); if(!dd) return;
+            dd.classList.replace('opacity-100', 'opacity-0'); setTimeout(() => { dd.classList.add('hidden'); }, 200);
         }
-
+        function populateSectorDropdown() {
+            const dd = document.getElementById('sector-dropdown'); if(!dd) return; dd.innerHTML = '';
+            ALL_SECTORS.forEach((s, i) => { dd.innerHTML += `<button onclick="goToSector(${i})" class="w-full text-left px-4 py-3 hover:bg-teal-50 hover:text-teal-700 rounded-xl text-xs font-bold text-gray-600 flex justify-between">${s.sector}</button>`; });
+        }
+        
         function renderDashboard() {
-            const sector = ALL_SECTORS[currentIdx];
+            const s = ALL_SECTORS[currentIdx]; 
+            const hn = document.getElementById('header-sector-name'); if(hn) hn.textContent = s.sector; 
+            const dsn = document.getElementById('dashboard-sector-name'); if(dsn) dsn.textContent = s.sector; 
+            const pc = document.getElementById('project-count'); if(pc) pc.textContent = s.projects.length;
+
+            const lp = document.getElementById('label-prev-sector'); if(lp) lp.textContent = ALL_SECTORS[(currentIdx - 1 + ALL_SECTORS.length) % ALL_SECTORS.length].sector; 
+            const ln = document.getElementById('label-next-sector'); if(ln) ln.textContent = ALL_SECTORS[(currentIdx + 1) % ALL_SECTORS.length].sector;
             
-            document.getElementById('header-sector-name').textContent = sector.sector;
-            document.getElementById('dashboard-sector-name').textContent = sector.sector;
-            document.getElementById('dashboard-status').textContent = sector.stats.status;
-            document.getElementById('dashboard-capacity').textContent = sector.stats.capacity;
-            document.getElementById('project-count').textContent = sector.projects.length;
-
-            // Set Next/Prev Indicator Text
-            const prevIdx = (currentIdx - 1 + ALL_SECTORS.length) % ALL_SECTORS.length;
-            const nextIdx = (currentIdx + 1) % ALL_SECTORS.length;
-            document.getElementById('label-prev-sector').textContent = ALL_SECTORS[prevIdx].sector;
-            document.getElementById('label-next-sector').textContent = ALL_SECTORS[nextIdx].sector;
-
-            const listEl = document.getElementById('project-list');
-            listEl.innerHTML = '';
-
-            sector.projects.forEach((p, i) => {
-                listEl.innerHTML += `
-                    <div onclick="selectProject(${i})" class="project-list-item p-4 bg-white/90 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-300 hover:bg-white transition-all group cursor-pointer shadow-sm">
+            const l = document.getElementById('project-list'); 
+            if(l) {
+                l.innerHTML = ''; 
+                s.projects.forEach((p, i) => { 
+                    let bCol = p.priority === "Urgent" ? "text-red-500" : (p.priority === "3 Days" ? "text-orange-500" : "text-green-500");
+                    l.innerHTML += `<div onclick="selectProject(${i})" class="p-4 bg-white rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm cursor-pointer hover:border-teal-300 transition-all">
                         <div>
-                            <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${p.name}</div>
+                            <div class="text-sm font-bold text-gray-800">${p.name}</div>
                             <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
                         </div>
-                        <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-1 rounded-md border border-teal-100 flex items-center gap-1">
-                            <i data-lucide="navigation" class="w-3 h-3"></i> ${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[9px] font-bold uppercase ${bCol}">${p.priority}</span>
+                            <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-0.5 rounded"><i data-lucide="navigation" class="w-3 h-3 inline"></i></div>
                         </div>
-                    </div>
-                `;
-            });
+                    </div>`; 
+                });
+            }
             lucide.createIcons(); 
         }
 
-        function switchView(targetView) {
-            const activeBadge = document.getElementById('active-route-badge');
-            const titlePrefix = document.getElementById('header-title-prefix');
-
-            // Set Header Titles
-            const titles = {
-                'dashboard': 'Delivery',
-                'admin': 'Franchise',
-                'activity': 'Telemetry',
-                'user': 'Settings'
-            };
-            titlePrefix.textContent = titles[targetView];
-
-            // Toggle Map Badge
-            activeBadge.style.opacity = targetView === 'dashboard' ? '1' : '0';
-
-            // Loop through all views and apply dynamic logic
-            VIEW_NAMES.forEach(v => {
-                const el = document.getElementById(`view-${v}`);
-                const btn = document.getElementById(`nav-${v}`);
+        // Feature: Minimize Panels
+        function minimizeAllViews() {
+            if(currentActiveView !== null) {
+                const el = document.getElementById(`view-${currentActiveView}`);
+                const btn = document.getElementById(`nav-${currentActiveView}`);
+                if(el) el.classList.replace('view-visible', 'view-hidden');
+                if(btn) { btn.classList.replace('bg-teal-50', 'text-gray-300'); btn.classList.remove('text-teal-600'); }
+                currentActiveView = null; // Clear view
                 
-                if(v === targetView) {
-                    el.classList.replace('view-hidden', 'view-visible');
-                    btn.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
-                } else {
-                    if (el.classList.contains('view-visible')) {
-                        el.classList.replace('view-visible', 'view-hidden');
-                    }
-                    btn.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
+                // Show Map Controls completely
+                const mapControls = document.getElementById('map-controls');
+                if(mapControls) {
+                    mapControls.style.opacity = '1';
+                    mapControls.style.pointerEvents = 'auto';
                 }
+            }
+        }
+
+        function switchView(targetView) {
+            // Toggle Minimizing logic
+            if (currentActiveView === targetView) {
+                minimizeAllViews();
+                return;
+            }
+
+            currentActiveView = targetView;
+            
+            const mapControls = document.getElementById('map-controls');
+            if(mapControls) {
+                mapControls.style.opacity = targetView === 'dashboard' ? '1' : '0';
+                mapControls.style.pointerEvents = targetView === 'dashboard' ? 'auto' : 'none';
+            }
+
+            const titles = { 'dashboard': 'Live Map', 'admin': 'Management', 'billing': 'Billing Data', 'user': 'Settings' };
+            const htp = document.getElementById('header-title-prefix'); if(htp) htp.textContent = titles[targetView] || 'Portal';
+
+            VIEW_NAMES.forEach(v => {
+                const el = document.getElementById(`view-${v}`); const btn = document.getElementById(`nav-${v}`); if(!el || !btn) return;
+                if(v === targetView) { el.classList.replace('view-hidden', 'view-visible'); btn.classList.replace('text-gray-300', 'bg-teal-50'); btn.classList.add('text-teal-600'); } 
+                else { if (el.classList.contains('view-visible')) el.classList.replace('view-visible', 'view-hidden'); btn.classList.replace('bg-teal-50', 'text-gray-300'); btn.classList.remove('text-teal-600'); }
             });
         }
     </script>
