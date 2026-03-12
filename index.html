@@ -121,14 +121,46 @@
         }
         .fade-out {
             opacity: 0 !important;
+            pointer-events: none;
+        }
+
+        /* SPLASH SCREEN ANIMATIONS */
+        .splash-logo {
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
         }
     </style>
 </head>
 <body class="selection:bg-teal-100 flex h-screen w-screen bg-[#FDFDFF]">
 
-    <!-- SIDEBAR -->
+    <!-- ================= LOADING SPLASH SCREEN ================= -->
+    <div id="splash-screen" class="fixed inset-0 z-[9999] bg-[#FDFDFF] flex flex-col items-center justify-center transition-opacity duration-1000">
+        <div class="relative flex flex-col items-center">
+            <!-- Glowing background aura -->
+            <div class="absolute inset-0 rounded-full blur-[80px] bg-teal-400/20 animate-pulse w-64 h-64 -m-8 mx-auto"></div>
+            
+            <!-- Company Logo (searches local folder) -->
+            <img src="./urbangaz.png" alt="URBN GAZ Logo" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
+            
+            <!-- Loader & Text -->
+            <div class="z-10 flex flex-col items-center w-64">
+                <div class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-3 flex items-center gap-2">
+                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Initializing Network
+                </div>
+                <div class="w-full h-1 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                    <div id="loading-progress" class="h-full bg-teal-500 w-0 transition-all duration-[2000ms] ease-out rounded-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SIDEBAR ================= -->
     <nav class="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 gap-10 z-[100] shadow-sm flex-shrink-0 relative">
-        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer">
+        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer hover:scale-105 transition-transform">
             <!-- Custom LPG Cylinder Icon -->
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white">
                 <path d="M7 8C7 5.79086 8.79086 4 11 4H13C15.2091 4 17 5.79086 17 8V10H7V8Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.5" />
@@ -144,18 +176,18 @@
             <button onclick="switchView('admin')" id="nav-admin" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
                 <i data-lucide="database" class="w-[22px] h-[22px]"></i>
             </button>
-            <button class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+            <button onclick="switchView('activity')" id="nav-activity" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
                 <i data-lucide="activity" class="w-[22px] h-[22px]"></i>
             </button>
         </div>
         <div class="mt-auto w-full px-4">
-            <button class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+            <button onclick="switchView('user')" id="nav-user" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
                 <i data-lucide="user" class="w-[22px] h-[22px]"></i>
             </button>
         </div>
     </nav>
 
-    <!-- MAIN CONTENT AREA -->
+    <!-- ================= MAIN CONTENT AREA ================= -->
     <main class="flex-1 relative overflow-hidden">
         
         <!-- MAP BACKGROUND (Fully Interactive) -->
@@ -189,9 +221,9 @@
         </div>
 
         <!-- VIEWS WRAPPER: BOTTOM -->
-        <div class="absolute bottom-8 left-8 right-8 z-[20] pointer-events-none flex items-end">
+        <div class="absolute bottom-8 left-8 right-8 z-[20] pointer-events-none flex items-end justify-start">
             
-            <!-- DASHBOARD VIEW -->
+            <!-- ================= DASHBOARD VIEW ================= -->
             <div id="view-dashboard" class="view-panel view-visible w-full max-w-md bg-white/70 backdrop-blur-2xl border border-white/80 rounded-[40px] p-8 shadow-2xl shadow-gray-200/50">
                 <div class="flex justify-between items-start mb-6">
                     <div>
@@ -231,8 +263,8 @@
                 </div>
             </div>
 
-            <!-- ADMIN VIEW -->
-            <div id="view-admin" class="view-panel view-hidden w-full max-w-5xl bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10">
+            <!-- ================= ADMIN VIEW ================= -->
+            <div id="view-admin" class="view-panel view-hidden w-full max-w-5xl bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10 mx-auto">
                 <!-- Input Form -->
                 <div class="flex-1">
                     <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
@@ -241,19 +273,19 @@
                     <div class="grid grid-cols-2 gap-6">
                         <div class="flex flex-col gap-2">
                             <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Project Name</label>
-                            <input type="text" placeholder="e.g. ASA TOWER" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                            <input id="input-proj-name" type="text" placeholder="e.g. ASA TOWER" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Sector / Area</label>
-                            <input type="text" placeholder="e.g. JOLSHIRI SEC-12" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                            <input id="input-proj-sector" type="text" placeholder="e.g. JOLSHIRI SEC-12" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude (GPS)</label>
-                            <input type="text" placeholder="23.8223" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                            <input id="input-proj-lat" type="text" placeholder="23.8223" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude (GPS)</label>
-                            <input type="text" placeholder="90.4873" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                            <input id="input-proj-lng" type="text" placeholder="90.4873" class="px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
                         </div>
                     </div>
                     
@@ -263,9 +295,11 @@
                         <span class="text-[10px] text-gray-400 mt-1">Sync consumption data with franchise portal</span>
                     </div>
 
-                    <button class="mt-8 w-full py-4 bg-teal-600 text-white rounded-2xl font-bold shadow-lg shadow-teal-100 flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors">
+                    <button id="btn-save-project" onclick="saveToGoogleSheet()" class="mt-8 w-full py-4 bg-teal-600 text-white rounded-2xl font-bold shadow-lg shadow-teal-100 flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors">
                         <i data-lucide="save" class="w-[18px] h-[18px]"></i> Update Fleet Data
                     </button>
+                    <!-- Status message hidden by default -->
+                    <div id="save-status-msg" class="text-center mt-3 text-xs font-bold opacity-0 transition-opacity"></div>
                 </div>
 
                 <!-- Franchise Status -->
@@ -304,6 +338,86 @@
                 </div>
             </div>
 
+            <!-- ================= ACTIVITY LOG VIEW ================= -->
+            <div id="view-activity" class="view-panel view-hidden w-full max-w-xl bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-10 shadow-2xl mx-auto">
+                <div class="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6">
+                    <div class="p-3 bg-teal-50 text-teal-600 rounded-xl"><i data-lucide="activity"></i></div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Fleet Activity Log</h2>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Real-time Telemetry Data</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar relative">
+                    <!-- Timeline Line -->
+                    <div class="absolute left-3 top-2 bottom-2 w-0.5 bg-gray-100 z-0"></div>
+
+                    <!-- Log Items -->
+                    <div class="relative z-10 flex gap-6">
+                        <div class="w-6 h-6 rounded-full bg-teal-500 border-4 border-white shadow-sm flex-shrink-0 mt-1"></div>
+                        <div class="bg-gray-50/80 rounded-2xl p-4 w-full border border-gray-100">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-bold text-gray-800">Cylinder Delivery Complete</span>
+                                <span class="text-[10px] font-mono text-gray-400">Just Now</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Fleet #04 dropped 24x LPG Cylinders at <span class="font-bold text-teal-600">ZOITA, SEC-12 JOLSHIRI</span>.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="relative z-10 flex gap-6">
+                        <div class="w-6 h-6 rounded-full bg-blue-500 border-4 border-white shadow-sm flex-shrink-0 mt-1"></div>
+                        <div class="bg-gray-50/80 rounded-2xl p-4 w-full border border-gray-100">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-bold text-gray-800">Route Calculated</span>
+                                <span class="text-[10px] font-mono text-gray-400">12 mins ago</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Fleet #02 en route to <span class="font-bold text-teal-600">GULSHAN MAX ADN</span>. ETA 45 mins.</p>
+                        </div>
+                    </div>
+
+                    <div class="relative z-10 flex gap-6">
+                        <div class="w-6 h-6 rounded-full bg-yellow-500 border-4 border-white shadow-sm flex-shrink-0 mt-1"></div>
+                        <div class="bg-gray-50/80 rounded-2xl p-4 w-full border border-gray-100">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-sm font-bold text-gray-800">System Sync</span>
+                                <span class="text-[10px] font-mono text-gray-400">1 hour ago</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Franchise Data from Excel synced with Google Sheets Backend.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= USER / SETTINGS VIEW ================= -->
+            <div id="view-user" class="view-panel view-hidden w-full max-w-sm bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] p-8 shadow-2xl mx-auto">
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-lg mb-4 flex items-center justify-center relative overflow-hidden">
+                        <!-- Placeholder User Avatar -->
+                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D9488&color=fff&size=128" alt="Admin" class="w-full h-full object-cover"/>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-800">Admin Dispatcher</h2>
+                    <p class="text-[10px] font-bold text-teal-600 uppercase tracking-widest mt-1 mb-6">Master Control</p>
+                </div>
+
+                <div class="space-y-3">
+                    <button class="w-full p-4 bg-gray-50 hover:bg-white rounded-2xl flex items-center justify-between border border-gray-100 hover:border-teal-200 transition-all group">
+                        <span class="text-sm font-bold text-gray-700 flex items-center gap-3">
+                            <i data-lucide="settings" class="text-gray-400 group-hover:text-teal-600 w-5 h-5 transition-colors"></i> System Preferences
+                        </span>
+                        <i data-lucide="chevron-right" class="text-gray-300 w-4 h-4"></i>
+                    </button>
+                    <button class="w-full p-4 bg-gray-50 hover:bg-white rounded-2xl flex items-center justify-between border border-gray-100 hover:border-teal-200 transition-all group">
+                        <span class="text-sm font-bold text-gray-700 flex items-center gap-3">
+                            <i data-lucide="bell" class="text-gray-400 group-hover:text-teal-600 w-5 h-5 transition-colors"></i> Alert Configurations
+                        </span>
+                        <i data-lucide="chevron-right" class="text-gray-300 w-4 h-4"></i>
+                    </button>
+                    <button class="w-full p-4 bg-red-50 hover:bg-red-100 rounded-2xl flex items-center justify-center border border-transparent transition-all mt-4 text-red-600 font-bold text-sm">
+                        <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Terminate Session
+                    </button>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -311,6 +425,10 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
+        // --- GOOGLE APPS SCRIPT WEB APP URL ---
+        // Replace this string with your deployed Google Apps Script URL.
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_YOUR_WEB_APP_ID/exec'; 
+
         // --- 1. FULL PROJECT DATA WITH BOUNDING POLYGONS ---
         const ALL_SECTORS = [
             {
@@ -375,12 +493,32 @@
         let markers = [];
         let currentPolygon = null;
         let isNavigatingRoute = false; 
+        const VIEW_NAMES = ['dashboard', 'admin', 'activity', 'user'];
 
-        // --- 3. INITIALIZATION ---
+        // --- 3. INITIALIZATION & SPLASH SCREEN ---
         document.addEventListener("DOMContentLoaded", () => {
             lucide.createIcons();
-            initMap();
-            renderDashboard();
+            
+            // Start Loading Splash Logic
+            const progressBar = document.getElementById('loading-progress');
+            setTimeout(() => {
+                progressBar.style.width = '100%'; // Animate bar to 100%
+            }, 100);
+
+            // Wait 2.2 seconds to simulate loading, then initialize map and hide splash
+            setTimeout(() => {
+                initMap();
+                renderDashboard();
+                
+                const splash = document.getElementById('splash-screen');
+                splash.classList.add('fade-out'); // Trigger CSS opacity transition
+                
+                // Physically remove splash from DOM after transition completes
+                setTimeout(() => {
+                    splash.remove();
+                }, 1000);
+
+            }, 2200);
             
             // Handle window resizing cleanly
             window.addEventListener('resize', () => {
@@ -390,7 +528,6 @@
 
         // --- 4. MAP LOGIC & RENDERING ---
         function initMap() {
-            // Explicitly enable all interactions so it never gets "stuck"
             map = L.map('map-container', {
                 zoomControl: false,
                 attributionControl: false,
@@ -404,7 +541,6 @@
                 maxZoom: 19
             }).addTo(map);
 
-            // Add Zoom Control to Bottom Right (won't overlap sidebar)
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             updateMapFeatures();
@@ -440,32 +576,27 @@
         }
 
         // --- 5. ROAD ROUTING & ANIMATIONS ---
-        
         async function navigateSector(direction) {
             if (isNavigatingRoute) return; 
             isNavigatingRoute = true;
             
-            // Lock UI buttons visually
             document.getElementById('btn-prev').disabled = true;
             document.getElementById('btn-next').disabled = true;
 
             const prevSector = ALL_SECTORS[currentIdx];
             
-            // Increment Index
             currentIdx = (currentIdx + direction + ALL_SECTORS.length) % ALL_SECTORS.length;
             const newSector = ALL_SECTORS[currentIdx];
 
             showRoutingUI(newSector.sector);
 
-            // Clear current area markings during travel
             if (currentPolygon) map.removeLayer(currentPolygon);
             markers.forEach(m => map.removeLayer(m.marker));
             markers = [];
 
-            // 1. Fetch Real Road Geometry with Timeout (Fail-safe against hanging)
             let routePts = [];
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3500); // Strict 3.5s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 3500);
 
             try {
                 const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${prevSector.coords[1]},${prevSector.coords[0]};${newSector.coords[1]},${newSector.coords[0]}?overview=full&geometries=geojson`;
@@ -475,15 +606,13 @@
                 routePts = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
             } catch(e) {
                 clearTimeout(timeoutId);
-                console.warn("Routing API blocked or timed out. Falling back to direct path.", e);
+                console.warn("Routing API fallback.", e);
                 routePts = [prevSector.coords, newSector.coords];
             }
 
-            // 2. Zoom map out to show the full journey path
             const routeBounds = L.latLngBounds(routePts);
             map.flyToBounds(routeBounds, { padding: [100, 100], duration: 1.5 });
 
-            // 3. Play animation after flyTo
             setTimeout(() => {
                 playDramaticRouteAnimation(routePts, newSector);
             }, 1600);
@@ -497,7 +626,6 @@
                 dists.push(totalDist);
             }
 
-            // Clamped Animation Time: 2.5s to 4.5s max
             let duration = (totalDist / 1000) * 300; 
             duration = Math.max(2500, Math.min(duration, 4500));
 
@@ -539,18 +667,15 @@
                 if (progress < 1) {
                     requestAnimationFrame(frame);
                 } else {
-                    // --- ANIMATION FINISHED: IMMEDIATELY UNLOCK UI ---
                     document.getElementById('header-sector-name').textContent = targetSector.sector;
                     renderDashboard();
                     updateMapFeatures();
                     map.flyTo(targetSector.coords, 14, { duration: 1.0 });
 
-                    // Re-enable interactions instantly
                     isNavigatingRoute = false;
                     document.getElementById('btn-prev').disabled = false;
                     document.getElementById('btn-next').disabled = false;
 
-                    // Let the trail fade out gracefully in the background
                     setTimeout(() => {
                         if(trail._path) trail._path.classList.add('fade-out');
                         if(pointerMarker._icon) pointerMarker._icon.classList.add('fade-out');
@@ -593,6 +718,82 @@
             });
         }
 
+        // --- 6. GOOGLE APPS SCRIPT FORM HANDLING ---
+        async function saveToGoogleSheet() {
+            // Get values from Admin Inputs
+            const name = document.getElementById('input-proj-name').value;
+            const sector = document.getElementById('input-proj-sector').value;
+            const lat = document.getElementById('input-proj-lat').value;
+            const lng = document.getElementById('input-proj-lng').value;
+            
+            const statusMsg = document.getElementById('save-status-msg');
+
+            // Basic Validation
+            if (!name || !sector || !lat || !lng) {
+                statusMsg.textContent = "Please fill in all coordinate data.";
+                statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
+                return;
+            }
+
+            const btn = document.getElementById('btn-save-project');
+            const originalHTML = btn.innerHTML;
+            
+            // UI Loading State
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-[18px] h-[18px] animate-spin"></i> Saving to Database...`;
+            btn.disabled = true;
+            lucide.createIcons();
+
+            // Prepare Data for Apps Script
+            const formData = new FormData();
+            formData.append('projectName', name);
+            formData.append('sector', sector);
+            formData.append('lat', lat);
+            formData.append('lng', lng);
+
+            try {
+                // Use POST with 'no-cors' mode which prevents CORS errors from Google's redirect
+                // The Apps Script MUST be deployed as a Web App (Execute as Me, Who has access: Anyone)
+                // And it needs a doPost(e) function to capture these parameters.
+                await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    body: formData
+                });
+                
+                // Show Success State
+                btn.innerHTML = `<i data-lucide="check" class="w-[18px] h-[18px]"></i> Data Synchronized`;
+                btn.classList.replace('bg-teal-600', 'bg-green-600');
+                btn.classList.replace('hover:bg-teal-700', 'hover:bg-green-700');
+                
+                statusMsg.textContent = "Successfully logged to Google Sheets!";
+                statusMsg.className = "text-center mt-3 text-xs font-bold text-green-600 opacity-100 transition-opacity";
+                
+                // Clear fields
+                document.getElementById('input-proj-name').value = '';
+                document.getElementById('input-proj-sector').value = '';
+                document.getElementById('input-proj-lat').value = '';
+                document.getElementById('input-proj-lng').value = '';
+
+            } catch (error) {
+                console.error("Error saving data:", error);
+                statusMsg.textContent = "Error saving. Check console and URL.";
+                statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
+            } finally {
+                lucide.createIcons();
+                
+                // Reset Button after 4 seconds
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.replace('bg-green-600', 'bg-teal-600');
+                    btn.classList.replace('hover:bg-green-700', 'hover:bg-teal-700');
+                    btn.disabled = false;
+                    statusMsg.classList.replace('opacity-100', 'opacity-0');
+                    lucide.createIcons();
+                }, 4000);
+            }
+        }
+
+        // --- 7. UI HELPERS ---
         function showRoutingUI(targetSectorName) {
             document.getElementById('dashboard-sector-name').textContent = `ROUTING...`;
             document.getElementById('dashboard-status').textContent = "In Transit";
@@ -636,29 +837,37 @@
             lucide.createIcons(); 
         }
 
-        function switchView(viewName) {
-            const vDash = document.getElementById('view-dashboard');
-            const vAdmin = document.getElementById('view-admin');
-            const bDash = document.getElementById('nav-dashboard');
-            const bAdmin = document.getElementById('nav-admin');
+        function switchView(targetView) {
             const activeBadge = document.getElementById('active-route-badge');
             const titlePrefix = document.getElementById('header-title-prefix');
 
-            if (viewName === 'dashboard') {
-                vDash.classList.replace('view-hidden', 'view-visible');
-                vAdmin.classList.replace('view-visible', 'view-hidden');
-                activeBadge.style.opacity = '1';
-                titlePrefix.textContent = 'Delivery';
-                bDash.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
-                bAdmin.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
-            } else {
-                vAdmin.classList.replace('view-hidden', 'view-visible');
-                vDash.classList.replace('view-visible', 'view-hidden');
-                activeBadge.style.opacity = '0';
-                titlePrefix.textContent = 'Franchise';
-                bAdmin.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
-                bDash.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
-            }
+            // Set Header Titles
+            const titles = {
+                'dashboard': 'Delivery',
+                'admin': 'Franchise',
+                'activity': 'Telemetry',
+                'user': 'Settings'
+            };
+            titlePrefix.textContent = titles[targetView];
+
+            // Toggle Map Badge
+            activeBadge.style.opacity = targetView === 'dashboard' ? '1' : '0';
+
+            // Loop through all views and apply dynamic logic
+            VIEW_NAMES.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const btn = document.getElementById(`nav-${v}`);
+                
+                if(v === targetView) {
+                    el.classList.replace('view-hidden', 'view-visible');
+                    btn.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
+                } else {
+                    if (el.classList.contains('view-visible')) {
+                        el.classList.replace('view-visible', 'view-hidden');
+                    }
+                    btn.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
+                }
+            });
         }
     </script>
 </body>
