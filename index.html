@@ -57,7 +57,7 @@
             overflow: hidden;
         }
         .leaflet-popup-content { margin: 0; width: 220px !important; }
-        .leaflet-popup-tip-container { display: none; } /* Hide the tip for a cleaner floating card look */
+        .leaflet-popup-tip-container { display: none; }
         
         /* Map Background Treatment */
         #map-container {
@@ -68,7 +68,7 @@
             transition: filter 0.8s ease;
         }
         .map-traffic-mode {
-            filter: grayscale(0) contrast(1.2) brightness(0.9) hue-rotate(0.9) !important;
+            filter: grayscale(0.1) contrast(1.1) brightness(0.8) !important;
         }
 
         /* View Transitions */
@@ -90,6 +90,18 @@
             z-index: 20;
             pointer-events: auto;
             visibility: visible;
+        }
+
+        /* FULLSCREEN PANEL TOGGLE */
+        .panel-fullscreen {
+            position: fixed !important;
+            inset: 20px 20px 20px 100px !important; /* Leave space for left sidebar */
+            max-width: none !important;
+            max-height: none !important;
+            width: auto !important;
+            height: auto !important;
+            z-index: 9999 !important;
+            border-radius: 20px !important;
         }
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
@@ -115,7 +127,7 @@
             opacity: 0 !important;
             pointer-events: none;
         }
-        
+
         .opt-route-trail {
             filter: drop-shadow(0 0 8px rgba(245,158,11, 0.6));
             stroke-dasharray: 10;
@@ -151,6 +163,15 @@
             70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+
+        /* Checkbox Custom styling */
+        .custom-checkbox:checked + div {
+            background-color: #0D9488;
+            border-color: #0D9488;
+        }
+        .custom-checkbox:checked + div svg {
+            display: block;
+        }
     </style>
 </head>
 <body class="selection:bg-teal-100 flex h-screen w-screen bg-[#FDFDFF]">
@@ -159,7 +180,7 @@
     <div id="splash-screen" class="fixed inset-0 z-[9999] bg-[#FDFDFF] flex flex-col items-center justify-center transition-opacity duration-1000">
         <div class="relative flex flex-col items-center">
             <div class="absolute inset-0 rounded-full blur-[80px] bg-teal-400/20 animate-pulse w-64 h-64 -m-8 mx-auto"></div>
-            <img src="./urbangaz.png" alt="URBN GAZ" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
+            <img src="./urbangaz.png" alt="" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
             <div class="z-10 flex flex-col items-center w-64">
                 <div class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-3 flex items-center gap-2">
                     <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Initializing Network
@@ -218,7 +239,7 @@
                 </h1>
             </div>
 
-            <!-- MAP FLOATING CONTROLS (Traffic, Priority, Route) -->
+            <!-- MAP FLOATING CONTROLS (Traffic, Priority, Smart Route) -->
             <div id="map-controls" class="mt-4 flex flex-col gap-3 transition-opacity duration-300">
                 <button onclick="toggleTrafficLayer()" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
                     <div id="traffic-indicator" class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-colors"></div>
@@ -247,7 +268,6 @@
             
             <!-- ================= VIEW 1: DASHBOARD (MAP PANEL) ================= -->
             <div id="view-dashboard" class="view-panel view-visible w-full max-w-sm bg-white/80 backdrop-blur-2xl border border-white rounded-[40px] shadow-2xl pointer-events-auto self-start mt-auto relative z-[100] flex flex-col overflow-hidden max-h-[80vh]">
-                
                 <!-- Panel Header with Minimize -->
                 <div class="flex justify-between items-center p-6 pb-2">
                     <h3 class="text-xs font-bold text-gray-400 tracking-widest uppercase">Map Navigator</h3>
@@ -309,7 +329,7 @@
             </div>
 
             <!-- ================= VIEW 2: DATA ENTRY MANAGEMENT ================= -->
-            <div id="view-admin" class="view-panel view-hidden w-full h-full bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+            <div id="view-admin" class="view-panel view-hidden w-full h-full bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl flex flex-col pointer-events-auto overflow-hidden transition-all duration-500 max-w-6xl mx-auto">
                 <div class="flex items-center justify-between p-8 pb-4 border-b border-gray-100 shrink-0">
                     <div class="flex items-center gap-4">
                         <h2 class="text-2xl font-bold flex items-center gap-3 text-gray-800">
@@ -319,15 +339,20 @@
                             <i data-lucide="lock" class="w-3 h-3"></i> Distributor Access
                         </span>
                     </div>
-                    <button onclick="minimizeAllViews()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
-                        <i data-lucide="minimize-2" class="w-5 h-5"></i>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <!-- EXPAND TO FULLSCREEN BUTTON -->
+                        <button onclick="toggleFullscreen('view-admin')" class="p-2 bg-teal-50 hover:bg-teal-100 rounded-full text-teal-700 transition-colors" title="Expand Fullscreen">
+                            <i data-lucide="maximize-2" id="fs-icon-admin" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="minimizeAllViews()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
+                            <i data-lucide="minimize-2" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex gap-8 overflow-hidden h-full p-8 pt-6">
                     <div class="flex-[1.5] overflow-y-auto pr-4 custom-scrollbar space-y-6 pb-10">
                         
-                        <!-- File Upload Controls -->
                         <div class="flex gap-4">
                             <div class="flex-1 p-4 border border-dashed border-gray-300 rounded-2xl bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100" onclick="document.getElementById('franchise-excel').click()">
                                 <div class="flex items-center gap-3">
@@ -342,33 +367,44 @@
                             </div>
                         </div>
 
-                        <!-- Franchise Entry -->
+                        <div id="geojson-setup-block" class="p-6 bg-orange-50/50 border border-orange-200 rounded-3xl hidden">
+                            <h3 class="text-xs font-bold text-orange-800 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <i data-lucide="map" class="w-4 h-4 text-orange-600"></i> [Admin] Area Geo-Fence Manager
+                            </h3>
+                            <p class="text-[10px] text-gray-600 mb-4">Paste a GeoJSON FeatureCollection to lock exact boundaries. This prevents auto-guessing.</p>
+                            <div class="flex flex-col gap-1.5 mb-3">
+                                <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Target Area / Franchise Name</label>
+                                <select id="geojson-sector-select" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm font-bold text-gray-700"></select>
+                            </div>
+                            <textarea id="inp-geojson" rows="4" placeholder='{ "type": "FeatureCollection", ... }' class="w-full p-4 bg-white border border-gray-200 rounded-xl text-[10px] font-mono focus:outline-none focus:ring-2 focus:ring-orange-200 mb-3 custom-scrollbar"></textarea>
+                            <button onclick="updateMapAreaGeoJSON()" class="w-full py-3 bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md hover:bg-orange-700 transition-colors flex justify-center items-center gap-2">
+                                <i data-lucide="shield-check" class="w-4 h-4"></i> Lock GeoJSON to Area
+                            </button>
+                        </div>
+
                         <div class="p-6 bg-gray-50/50 border border-gray-200 rounded-3xl">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="briefcase" class="w-4 h-4 text-teal-600"></i> 1. Franchise Details</h3>
                             <div class="grid grid-cols-2 gap-4">
-                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Franchise Owner Name</label><input type="text" placeholder="e.g. Mr. Rahman" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
-                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Contact Number</label><input type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Franchise Owner Name</label><input id="inp-franchise" type="text" placeholder="e.g. Mr. Rahman" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Contact Number</label><input id="inp-contact" type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                             </div>
                         </div>
 
-                        <!-- Building Entry -->
                         <div class="p-6 bg-gray-50/50 border border-gray-200 rounded-3xl">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="building" class="w-4 h-4 text-teal-600"></i> 2. Building Details</h3>
                             <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div class="flex flex-col gap-1.5 col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Building Name & Address</label><input type="text" placeholder="e.g. Asa Tower, Sec-11, Jolshiri" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5 col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Building Name & Address</label><input id="inp-building" type="text" placeholder="e.g. Asa Tower, Sec-11, Jolshiri" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                                 <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Total Flats</label><input type="number" placeholder="10" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                                 <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Owner Contact (Optional)</label><input type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                             </div>
                         </div>
 
-                        <!-- Flat & Meter Entry -->
                         <div class="p-6 bg-teal-50/50 border border-teal-100 rounded-3xl">
                             <h3 class="text-xs font-bold text-teal-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="gauge" class="w-4 h-4 text-teal-600"></i> 3. Flat & Meter Entry</h3>
                             <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Flat Number / Unit</label><input type="text" placeholder="A-1" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Flat Number / Unit</label><input id="inp-flat" type="text" placeholder="A-1" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                                 <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Active Meter Number</label><input type="text" placeholder="MTR-8820" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm font-mono"/></div>
                             </div>
-
                             <div class="p-4 bg-white rounded-2xl border border-gray-200 mt-6 shadow-sm">
                                 <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
                                     <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Auto-Calculation Matrix</h4>
@@ -394,12 +430,11 @@
                                 </div>
                             </div>
                         </div>
-
-                        <button class="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-black transition-colors flex items-center justify-center gap-2">
+                        <button id="btn-save-project" onclick="saveToGoogleSheet()" class="w-full py-4 bg-gray-800 text-white rounded-2xl font-bold shadow-lg hover:bg-black transition-colors flex items-center justify-center gap-2">
                             <i data-lucide="plus-circle" class="w-5 h-5"></i> Generate Bill & Save to Sheets
                         </button>
+                        <div id="save-status-msg" class="text-center text-xs font-bold opacity-0 transition-opacity"></div>
                     </div>
-
                     <div class="w-1/3 min-w-[300px] bg-gray-50 rounded-3xl p-6 border border-gray-200 flex flex-col h-full">
                         <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="network" class="w-4 h-4 text-teal-600"></i> Database Tree</h3>
                         <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -422,7 +457,7 @@
             </div>
 
             <!-- ================= VIEW 3: BILLING MANAGEMENT ================= -->
-            <div id="view-billing" class="view-panel view-hidden w-full h-full bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl flex flex-col pointer-events-auto overflow-hidden">
+            <div id="view-billing" class="view-panel view-hidden w-full h-full bg-white/95 backdrop-blur-3xl border border-white rounded-[40px] shadow-2xl flex flex-col pointer-events-auto overflow-hidden transition-all duration-500 max-w-6xl mx-auto">
                 <div class="flex items-center justify-between p-8 pb-4 border-b border-gray-100 shrink-0">
                     <div>
                         <h2 class="text-2xl font-bold flex items-center gap-3 text-gray-800">
@@ -434,12 +469,29 @@
                             <i data-lucide="download" class="w-3 h-3"></i> Export CSV
                         </button>
                         <div class="w-px h-6 bg-gray-200 mx-1"></div>
-                        <select id="filter-franchise" onchange="renderBillingTable()" class="px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none">
-                            <option value="ALL">All Franchises</option>
-                            <option value="Jolshiri Hub">Jolshiri Hub</option>
-                            <option value="Khilkhet Depot">Khilkhet Depot</option>
-                        </select>
-                        <button onclick="minimizeAllViews()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors ml-2">
+                        
+                        <!-- MULTI-SELECT DROPDOWN FOR FRANCHISES -->
+                        <div class="relative">
+                            <button onclick="toggleMultiSelectMenu(event)" class="px-4 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 rounded-xl text-xs font-bold text-gray-700 flex items-center gap-2 transition-colors">
+                                Filter Franchises <i data-lucide="filter" class="w-3 h-3"></i>
+                            </button>
+                            <div id="multi-select-menu" class="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 shadow-2xl rounded-xl p-2 hidden z-50 flex flex-col gap-1">
+                                <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer text-xs font-bold">
+                                    <input type="checkbox" id="cb-ALL" value="ALL" checked onchange="updateBillingFilters(this)" class="w-4 h-4 accent-teal-600 cursor-pointer">
+                                    Show All / Summary
+                                </label>
+                                <div class="w-full h-px bg-gray-100 my-1"></div>
+                                <div id="multi-select-options" class="max-h-48 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+                                    <!-- Injected via JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- EXPAND TO FULLSCREEN BUTTON -->
+                        <button onclick="toggleFullscreen('view-billing')" class="p-2 bg-teal-50 hover:bg-teal-100 rounded-full text-teal-700 transition-colors ml-2" title="Expand Fullscreen">
+                            <i data-lucide="maximize-2" id="fs-icon-billing" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="minimizeAllViews()" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors">
                             <i data-lucide="minimize-2" class="w-5 h-5"></i>
                         </button>
                     </div>
@@ -552,6 +604,89 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
+        // PUT YOUR GOOGLE APP SCRIPT WEB APP URL HERE:
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_YOUR_WEB_APP_ID/exec';
+
+        // ======================= MAP & LOCATION DATA =======================
+        const ALL_SECTORS = [
+            {
+                sector: "JOLSHIRI ABASHON",
+                coords: [23.808, 90.502], 
+                osmQuery: null,
+                polygon: [
+                    [23.79587, 90.50538], [23.79464, 90.50703], [23.79457, 90.50987], [23.79240, 90.51405],
+                    [23.79904, 90.52107], [23.80402, 90.52123], [23.81131, 90.52075], [23.81787, 90.51429],
+                    [23.81780, 90.50349], [23.81932, 90.50088], [23.81924, 90.49836], [23.81838, 90.49828],
+                    [23.81859, 90.49647], [23.82040, 90.49521], [23.81975, 90.49323], [23.81888, 90.49331],
+                    [23.81679, 90.49315], [23.81607, 90.49371], [23.81607, 90.49505], [23.81528, 90.49513],
+                    [23.81528, 90.49339], [23.81607, 90.49268], [23.81715, 90.49213], [23.81693, 90.49024],
+                    [23.81571, 90.49039], [23.81535, 90.48803], [23.81556, 90.48606], [23.81441, 90.48566],
+                    [23.81232, 90.48606], [23.81023, 90.48543], [23.80907, 90.48527], [23.80799, 90.48558],
+                    [23.80626, 90.48606], [23.80481, 90.48590], [23.80481, 90.48866], [23.80481, 90.49528],
+                    [23.80424, 90.49891], [23.80251, 90.49907], [23.79926, 90.49986], [23.79673, 90.50214]
+                ],
+                stats: { status: "Active Focus", capacity: "85%" },
+                projects: [
+                    { name: "ZOITA", loc: "SEC-12", lat: 23.823, lng: 90.488, flats: 24, meters: 24, priority: "Urgent" },
+                    { name: "MAHFUZ ALAM RES", loc: "SEC-16", lat: 23.824, lng: 90.486, flats: 12, meters: 10, priority: "3 Days" },
+                    { name: "SURAIYA DREAM", loc: "SEC-16", lat: 23.821, lng: 90.485, flats: 8, meters: 8, priority: "7 Days" },
+                    { name: "ASA TOWER", loc: "SEC-11", lat: 23.820, lng: 90.489, flats: 30, meters: 28, priority: "Urgent" },
+                    { name: "SHOKRANA NIBASH", loc: "SEC-16", lat: 23.825, lng: 90.484, flats: 15, meters: 15, priority: "3 Days" },
+                    { name: "AMINUL HOQUE", loc: "SEC-16", lat: 23.826, lng: 90.487, flats: 10, meters: 9, priority: "7 Days" }
+                ]
+            },
+            {
+                sector: "KHILKHET",
+                coords: [23.8315, 90.4178],
+                osmQuery: "Khilkhet Thana, Dhaka",
+                polygon: [[23.840, 90.412], [23.842, 90.420], [23.838, 90.428], [23.830, 90.430], [23.824, 90.425], [23.822, 90.418], [23.825, 90.410], [23.832, 90.408]],
+                stats: { status: "Stable Growth", capacity: "62%" },
+                projects: [
+                    { name: "NOOR SHELTER", loc: "MODDHOPARA", lat: 23.832, lng: 90.418, flats: 20, meters: 18, priority: "3 Days" },
+                    { name: "MIZAN HOUSE", loc: "UTTARPARA", lat: 23.834, lng: 90.416, flats: 15, meters: 15, priority: "Urgent" },
+                    { name: "NF TOWER", loc: "BARUA", lat: 23.835, lng: 90.415, flats: 25, meters: 20, priority: "7 Days" },
+                    { name: "NIZAMUDDIN HSE", loc: "MALEK MATABBOR", lat: 23.830, lng: 90.420, flats: 10, meters: 10, priority: "Urgent" }
+                ]
+            },
+            {
+                sector: "DAKKHIN KHAN",
+                coords: [23.8447, 90.4130],
+                osmQuery: "Dakshinkhan, Dhaka", 
+                polygon: [[23.855, 90.405], [23.858, 90.415], [23.852, 90.425], [23.845, 90.428], [23.838, 90.420], [23.835, 90.410], [23.840, 90.402], [23.848, 90.400]],
+                stats: { status: "New Expansion", capacity: "40%" },
+                projects: [
+                    { name: "SOTOTA TOWER", loc: "KAWLAR", lat: 23.845, lng: 90.413, flats: 40, meters: 35, priority: "Urgent" }
+                ]
+            },
+            {
+                sector: "GULSHAN / MOHAKHALI",
+                coords: [23.7925, 90.4078],
+                osmQuery: "Gulshan Thana, Dhaka", 
+                polygon: [[23.805, 90.408], [23.802, 90.415], [23.792, 90.418], [23.782, 90.415], [23.775, 90.408], [23.772, 90.400], [23.778, 90.392], [23.788, 90.390], [23.798, 90.395], [23.802, 90.402]],
+                stats: { status: "Premium Tier", capacity: "92%" },
+                projects: [
+                    { name: "MAX ADN", loc: "GULSHAN", lat: 23.793, lng: 90.410, flats: 60, meters: 60, priority: "3 Days" },
+                    { name: "MAX SHORIF", loc: "MOHAKHALI DOHS", lat: 23.785, lng: 90.398, flats: 45, meters: 45, priority: "7 Days" }
+                ]
+            },
+            {
+                sector: "UTTARA",
+                coords: [23.8759, 90.3795],
+                osmQuery: "Uttara, Dhaka",
+                polygon: [[23.888, 90.380], [23.885, 90.395], [23.875, 90.402], [23.862, 90.398], [23.858, 90.385], [23.860, 90.375], [23.870, 90.368], [23.880, 90.370]],
+                stats: { status: "Active Delivery", capacity: "78%" },
+                projects: [
+                    { name: "MUZAFFAR GARDEN", loc: "SEC-10", lat: 23.876, lng: 90.380, flats: 50, meters: 48, priority: "Urgent" }
+                ]
+            }
+        ];
+
+        let currentIdx = 0, map = null, markers = [], currentPolygon = null;
+        let isNavigatingRoute = false, trafficEnabled = false, alertsEnabled = false;
+        let optRouteLayer = null;
+        const VIEW_NAMES = ['dashboard', 'admin', 'billing', 'user'];
+        let currentActiveView = 'dashboard';
+
         // ======================= ROLE LOGIC =======================
         let currentUserRole = "DISTRIBUTOR";
 
@@ -581,6 +716,91 @@
                 if(roleTagManagement) roleTagManagement.innerHTML = `<i data-lucide="unlock" class="w-3 h-3"></i> Admin Override Access`;
             }
             lucide.createIcons();
+        }
+
+        // ======================= FULLSCREEN LOGIC =======================
+        function toggleFullscreen(viewId) {
+            const el = document.getElementById(viewId);
+            const iconId = viewId.split('-')[1]; 
+            const icon = document.getElementById('fs-icon-' + iconId);
+            
+            if(!el || !icon) return;
+
+            if(el.classList.contains('panel-fullscreen')) {
+                el.classList.remove('panel-fullscreen');
+                icon.setAttribute('data-lucide', 'maximize-2');
+            } else {
+                el.classList.add('panel-fullscreen');
+                icon.setAttribute('data-lucide', 'minimize-2');
+            }
+            lucide.createIcons();
+        }
+
+        // ======================= ADMIN GEOJSON LOGIC =======================
+        function populateGeojsonSelector() {
+            const sel = document.getElementById('geojson-sector-select');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- Select Target Area --</option>';
+            ALL_SECTORS.forEach(s => {
+                sel.innerHTML += `<option value="${s.sector}">${s.sector}</option>`;
+            });
+            sel.innerHTML += `<option value="NEW_AREA">+ Create New Custom Area</option>`;
+        }
+
+        function updateMapAreaGeoJSON() {
+            const val = document.getElementById('inp-geojson').value;
+            const targetSectorName = document.getElementById('geojson-sector-select').value;
+
+            if(!val || !targetSectorName) {
+                return alert("Please select an area and paste the GeoJSON code.");
+            }
+
+            try {
+                const geoData = JSON.parse(val);
+                if(geoData.type === "FeatureCollection" && geoData.features[0] && geoData.features[0].geometry.coordinates) {
+                    
+                    let polyData = geoData.features[0].geometry.coordinates;
+                    
+                    if (geoData.features[0].geometry.type === "Polygon") {
+                        polyData = polyData[0];
+                    } else if (geoData.features[0].geometry.type === "MultiPolygon") {
+                        polyData = polyData[0][0]; 
+                    }
+                    
+                    const leafletPoly = polyData.map(pt => [pt[1], pt[0]]);
+                    let sectorIndex = ALL_SECTORS.findIndex(s => s.sector === targetSectorName);
+                    
+                    if(sectorIndex !== -1) {
+                        ALL_SECTORS[sectorIndex].polygon = leafletPoly;
+                        ALL_SECTORS[sectorIndex].osmQuery = null; 
+                        ALL_SECTORS[sectorIndex].geoJsonCache = null;
+                        alert(`Success! Precise GeoJSON is permanently locked to ${targetSectorName}. Auto-guessing disabled.`);
+                    } else if (targetSectorName === "NEW_AREA") {
+                        ALL_SECTORS.push({
+                            sector: "NEW CUSTOM AREA",
+                            coords: leafletPoly[0],
+                            polygon: leafletPoly,
+                            osmQuery: null,
+                            stats: { status: "Pending Setup", capacity: "0%" },
+                            projects: []
+                        });
+                        alert("Success! New Custom Map Boundary has been added to memory.");
+                    }
+
+                    document.getElementById('inp-geojson').value = '';
+                    populateSectorDropdown();
+                    populateGeojsonSelector(); 
+                    
+                    if(currentIdx === sectorIndex && map) {
+                        updateMapFeatures();
+                    }
+                } else {
+                    alert("Invalid GeoJSON Format. Must be a FeatureCollection containing a Polygon/MultiPolygon.");
+                }
+            } catch(e) {
+                console.error(e);
+                alert("JSON Parse Error. Ensure you copied valid code from geojson.io");
+            }
         }
 
         // ======================= MOCK DATABASE & CSV LOGIC =======================
@@ -619,85 +839,79 @@
             reader.readAsText(file);
         }
 
-        // ======================= MAP & LOCATION DATA =======================
-        const ALL_SECTORS = [
-            {
-                sector: "JOLSHIRI ABASHON",
-                coords: [23.808, 90.502], 
-                polygon: [
-                    [23.79587, 90.50538], [23.79464, 90.50703], [23.79457, 90.50987], [23.79240, 90.51405],
-                    [23.79904, 90.52107], [23.80402, 90.52123], [23.81131, 90.52075], [23.81787, 90.51429],
-                    [23.81780, 90.50349], [23.81932, 90.50088], [23.81924, 90.49836], [23.81838, 90.49828],
-                    [23.81859, 90.49647], [23.82040, 90.49521], [23.81975, 90.49323], [23.81888, 90.49331],
-                    [23.81679, 90.49315], [23.81607, 90.49371], [23.81607, 90.49505], [23.81528, 90.49513],
-                    [23.81528, 90.49339], [23.81607, 90.49268], [23.81715, 90.49213], [23.81693, 90.49024],
-                    [23.81571, 90.49039], [23.81535, 90.48803], [23.81556, 90.48606], [23.81441, 90.48566],
-                    [23.81232, 90.48606], [23.81023, 90.48543], [23.80907, 90.48527], [23.80799, 90.48558],
-                    [23.80626, 90.48606], [23.80481, 90.48590], [23.80481, 90.48866], [23.80481, 90.49528],
-                    [23.80424, 90.49891], [23.80251, 90.49907], [23.79926, 90.49986], [23.79673, 90.50214]
-                ],
-                stats: { status: "Active Focus", capacity: "85%" },
-                projects: [
-                    { name: "ZOITA", loc: "SEC-12", lat: 23.823, lng: 90.488, flats: 24, meters: 24, priority: "Urgent" },
-                    { name: "MAHFUZ ALAM RES", loc: "SEC-16", lat: 23.824, lng: 90.486, flats: 12, meters: 10, priority: "3 Days" },
-                    { name: "SURAIYA DREAM", loc: "SEC-16", lat: 23.821, lng: 90.485, flats: 8, meters: 8, priority: "7 Days" },
-                    { name: "ASA TOWER", loc: "SEC-11", lat: 23.820, lng: 90.489, flats: 30, meters: 28, priority: "Urgent" },
-                    { name: "SHOKRANA NIBASH", loc: "SEC-16", lat: 23.825, lng: 90.484, flats: 15, meters: 15, priority: "3 Days" },
-                    { name: "AMINUL HOQUE", loc: "SEC-16", lat: 23.826, lng: 90.487, flats: 10, meters: 9, priority: "7 Days" }
-                ]
-            },
-            {
-                sector: "KHILKHET",
-                coords: [23.8315, 90.4178],
-                polygon: [[23.840, 90.412], [23.842, 90.420], [23.838, 90.428], [23.830, 90.430], [23.824, 90.425], [23.822, 90.418], [23.825, 90.410], [23.832, 90.408]],
-                stats: { status: "Stable Growth", capacity: "62%" },
-                projects: [
-                    { name: "NOOR SHELTER", loc: "MODDHOPARA", lat: 23.832, lng: 90.418, flats: 20, meters: 18, priority: "3 Days" },
-                    { name: "MIZAN HOUSE", loc: "UTTARPARA", lat: 23.834, lng: 90.416, flats: 15, meters: 15, priority: "Urgent" },
-                    { name: "NF TOWER", loc: "BARUA", lat: 23.835, lng: 90.415, flats: 25, meters: 20, priority: "7 Days" },
-                    { name: "NIZAMUDDIN HSE", loc: "MALEK MATABBOR", lat: 23.830, lng: 90.420, flats: 10, meters: 10, priority: "Urgent" }
-                ]
-            },
-            {
-                sector: "DAKKHIN KHAN",
-                coords: [23.8447, 90.4130],
-                polygon: [[23.855, 90.405], [23.858, 90.415], [23.852, 90.425], [23.845, 90.428], [23.838, 90.420], [23.835, 90.410], [23.840, 90.402], [23.848, 90.400]],
-                stats: { status: "New Expansion", capacity: "40%" },
-                projects: [
-                    { name: "SOTOTA TOWER", loc: "KAWLAR", lat: 23.845, lng: 90.413, flats: 40, meters: 35, priority: "Urgent" }
-                ]
-            },
-            {
-                sector: "GULSHAN / MOHAKHALI",
-                coords: [23.7925, 90.4078],
-                polygon: [[23.805, 90.408], [23.802, 90.415], [23.792, 90.418], [23.782, 90.415], [23.775, 90.408], [23.772, 90.400], [23.778, 90.392], [23.788, 90.390], [23.798, 90.395], [23.802, 90.402]],
-                stats: { status: "Premium Tier", capacity: "92%" },
-                projects: [
-                    { name: "MAX ADN", loc: "GULSHAN", lat: 23.793, lng: 90.410, flats: 60, meters: 60, priority: "3 Days" },
-                    { name: "MAX SHORIF", loc: "MOHAKHALI DOHS", lat: 23.785, lng: 90.398, flats: 45, meters: 45, priority: "7 Days" }
-                ]
-            },
-            {
-                sector: "UTTARA",
-                coords: [23.8759, 90.3795],
-                polygon: [[23.888, 90.380], [23.885, 90.395], [23.875, 90.402], [23.862, 90.398], [23.858, 90.385], [23.860, 90.375], [23.870, 90.368], [23.880, 90.370]],
-                stats: { status: "Active Delivery", capacity: "78%" },
-                projects: [
-                    { name: "MUZAFFAR GARDEN", loc: "SEC-10", lat: 23.876, lng: 90.380, flats: 50, meters: 48, priority: "Urgent" }
-                ]
-            }
-        ];
+        // ======================= MULTI-SELECT BILLING DROPDOWN =======================
+        let activeFranchiseFilters = ['ALL'];
 
-        let currentIdx = 0, map = null, markers = [], currentPolygon = null;
-        let isNavigatingRoute = false, trafficEnabled = false, alertsEnabled = false;
-        let optRouteLayer = null;
-        const VIEW_NAMES = ['dashboard', 'admin', 'billing', 'user'];
-        let currentActiveView = 'dashboard';
+        function toggleMultiSelectMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('multi-select-menu');
+            if(menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                populateMultiSelectOptions();
+            } else {
+                menu.classList.add('hidden');
+            }
+        }
+
+        function populateMultiSelectOptions() {
+            const optionsContainer = document.getElementById('multi-select-options');
+            optionsContainer.innerHTML = '';
+            
+            const franchises = [...new Set(mockDB.map(d => d.franchise))];
+            
+            franchises.forEach(f => {
+                const isChecked = activeFranchiseFilters.includes(f) ? 'checked' : '';
+                optionsContainer.innerHTML += `
+                    <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer text-xs">
+                        <input type="checkbox" class="franchise-cb w-4 h-4 accent-teal-600 cursor-pointer" value="${f}" ${isChecked} onchange="updateBillingFilters(this)">
+                        ${f}
+                    </label>
+                `;
+            });
+        }
+
+        function updateBillingFilters(checkbox) {
+            const val = checkbox.value;
+            
+            if(val === 'ALL') {
+                if(checkbox.checked) {
+                    activeFranchiseFilters = ['ALL'];
+                    document.querySelectorAll('.franchise-cb').forEach(cb => cb.checked = false);
+                } else {
+                    activeFranchiseFilters = [];
+                }
+            } else {
+                if(checkbox.checked) {
+                    document.getElementById('cb-ALL').checked = false;
+                    activeFranchiseFilters = activeFranchiseFilters.filter(f => f !== 'ALL');
+                    activeFranchiseFilters.push(val);
+                } else {
+                    activeFranchiseFilters = activeFranchiseFilters.filter(f => f !== val);
+                }
+            }
+
+            if(activeFranchiseFilters.length === 0) {
+                activeFranchiseFilters = ['ALL'];
+                document.getElementById('cb-ALL').checked = true;
+                document.querySelectorAll('.franchise-cb').forEach(cb => cb.checked = false);
+            }
+            renderBillingTable();
+        }
+
+        // Hide multi-select when clicked outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('multi-select-menu');
+            if(menu && !menu.contains(e.target) && !e.target.closest('button[onclick="toggleMultiSelectMenu(event)"]')) {
+                menu.classList.add('hidden');
+            }
+        });
+
 
         // ======================= INITIALIZATION =======================
         document.addEventListener("DOMContentLoaded", () => {
             lucide.createIcons();
             populateSectorDropdown();
+            populateGeojsonSelector(); 
             renderBillingTable();
             changeUserRole("DISTRIBUTOR");
             
@@ -712,19 +926,20 @@
             }, 1800);
             
             window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
-            document.addEventListener('click', () => { closeSectorDropdown(); });
+            document.addEventListener('click', (e) => { 
+                if(!e.target.closest('#btn-dropdown')) closeSectorDropdown(); 
+            });
         });
 
         // ======================= BILLING SPREADSHEET =======================
         function renderBillingTable() {
-            const filterEl = document.getElementById('filter-franchise');
             const tbody = document.getElementById('billing-tbody');
-            if(!filterEl || !tbody) return;
+            if(!tbody) return;
 
-            const filterVal = filterEl.value;
             tbody.innerHTML = '';
             let tVol = 0, tGen = 0, tRec = 0, tDue = 0;
-            const filteredData = filterVal === "ALL" ? mockDB : mockDB.filter(d => d.franchise === filterVal);
+            
+            const filteredData = activeFranchiseFilters.includes("ALL") ? mockDB : mockDB.filter(d => activeFranchiseFilters.includes(d.franchise));
 
             filteredData.forEach(row => {
                 const due = row.bill - row.paid;
@@ -742,11 +957,117 @@
                     <div class="col-span-1 text-right font-mono ${due > 0 ? 'text-orange-600 font-bold' : 'text-gray-400'}">৳ ${due}</div>
                     <div class="col-span-1 text-center">${statusHtml}</div></div>`;
             });
+            
             const kpiVol = document.getElementById('kpi-vol'); if(kpiVol) kpiVol.textContent = `${tVol} Units`; 
             const kpiGen = document.getElementById('kpi-gen'); if(kpiGen) kpiGen.textContent = `৳ ${tGen.toLocaleString()}`;
             const kpiRec = document.getElementById('kpi-rec'); if(kpiRec) kpiRec.textContent = `৳ ${tRec.toLocaleString()}`; 
             const kpiDue = document.getElementById('kpi-due'); if(kpiDue) kpiDue.textContent = `৳ ${tDue.toLocaleString()}`;
             lucide.createIcons();
+        }
+
+        // ======================= DATA ENTRY MODULE =======================
+        function calcEntryBill() {
+            const prevEl = document.getElementById('form-prev');
+            const currEl = document.getElementById('form-curr');
+            const rateEl = document.getElementById('form-rate');
+            
+            if(!prevEl || !currEl || !rateEl) return;
+
+            const prev = parseFloat(prevEl.value) || 0;
+            const curr = parseFloat(currEl.value) || 0;
+            const rate = parseFloat(rateEl.value) || 0;
+            
+            let cons = curr - prev;
+            if(cons < 0) cons = 0;
+            let bill = cons * rate;
+
+            const consEl = document.getElementById('form-calc-cons');
+            const billEl = document.getElementById('form-calc-bill');
+
+            if(consEl) consEl.textContent = `${cons.toFixed(1)} Units`;
+            if(billEl) billEl.textContent = `৳ ${bill.toFixed(2)}`;
+        }
+
+        async function saveToGoogleSheet() {
+            const franchise = document.getElementById('inp-franchise').value;
+            const contact = document.getElementById('inp-contact').value;
+            const building = document.getElementById('inp-building').value;
+            const flat = document.getElementById('inp-flat').value;
+            const prev = document.getElementById('form-prev').value;
+            const curr = document.getElementById('form-curr').value;
+            const rate = document.getElementById('form-rate').value;
+            
+            const collected = 0; 
+            const statusMsg = document.getElementById('save-status-msg');
+
+            if (!franchise || !building || !flat || !curr) {
+                statusMsg.textContent = "Please fill in Franchise, Building, Flat, and Meter readings.";
+                statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
+                return;
+            }
+
+            const btn = document.getElementById('btn-save-project');
+            const originalHTML = btn.innerHTML;
+            
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-[18px] h-[18px] animate-spin"></i> Saving to Database...`;
+            btn.disabled = true;
+            lucide.createIcons();
+
+            const consumption = (parseFloat(curr) || 0) - (parseFloat(prev) || 0);
+            const bill = consumption * (parseFloat(rate) || 0);
+
+            const formData = new FormData();
+            formData.append('franchise', franchise);
+            formData.append('contact', contact);
+            formData.append('building', building);
+            formData.append('flat', flat);
+            formData.append('prevReading', prev);
+            formData.append('currReading', curr);
+            formData.append('consumption', consumption);
+            formData.append('rate', rate);
+            formData.append('generatedBill', bill);
+            formData.append('collectedBill', collected);
+
+            try {
+                await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    body: formData
+                });
+                
+                btn.innerHTML = `<i data-lucide="check" class="w-[18px] h-[18px]"></i> Data Synchronized`;
+                btn.classList.replace('bg-gray-800', 'bg-green-600');
+                btn.classList.replace('hover:bg-black', 'hover:bg-green-700');
+                
+                statusMsg.textContent = "Successfully logged to Google Sheets!";
+                statusMsg.className = "text-center mt-3 text-xs font-bold text-green-600 opacity-100 transition-opacity";
+                
+                mockDB.push({
+                    id: Date.now(),
+                    franchise: franchise,
+                    building: building,
+                    flat: flat,
+                    cons: consumption,
+                    bill: bill,
+                    paid: collected
+                });
+                renderBillingTable();
+
+            } catch (error) {
+                console.error("Error saving data:", error);
+                statusMsg.textContent = "Error saving. Check console and URL.";
+                statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
+            } finally {
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.replace('bg-green-600', 'bg-gray-800');
+                    btn.classList.replace('hover:bg-green-700', 'hover:bg-black');
+                    btn.disabled = false;
+                    statusMsg.classList.replace('opacity-100', 'opacity-0');
+                    lucide.createIcons();
+                }, 4000);
+            }
         }
 
         // ======================= MAP MODULE =======================
@@ -764,12 +1085,41 @@
             updateMapFeatures();
         }
 
+        // --- DHAKA TRAFFIC MOCK DATA ---
+        let trafficLayerGroup = null;
+        const DHAKA_TRAFFIC_DATA = [
+            { path: [[23.880, 90.395], [23.850, 90.402], [23.820, 90.400], [23.790, 90.395]], color: '#EF4444', weight: 5 }, // Airport rd
+            { path: [[23.820, 90.400], [23.825, 90.440], [23.822, 90.490], [23.808, 90.502]], color: '#F59E0B', weight: 4 }, // 300 feet to Jolshiri
+            { path: [[23.790, 90.395], [23.785, 90.410], [23.795, 90.415]], color: '#EF4444', weight: 4 }, // Gulshan
+            { path: [[23.870, 90.360], [23.875, 90.380], [23.880, 90.400]], color: '#22C55E', weight: 4 }, // Uttara internal
+            { path: [[23.845, 90.400], [23.850, 90.415], [23.844, 90.430]], color: '#F59E0B', weight: 4 }, // Dakkhin khan
+        ];
+
         function toggleTrafficLayer() {
             trafficEnabled = !trafficEnabled;
             const container = document.getElementById('map-container'); const indicator = document.getElementById('traffic-indicator');
-            if(!container || !indicator) return;
-            if(trafficEnabled) { container.classList.add('map-traffic-mode'); indicator.classList.replace('bg-gray-300', 'bg-red-500'); indicator.classList.add('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); }
-            else { container.classList.remove('map-traffic-mode'); indicator.classList.replace('bg-red-500', 'bg-gray-300'); indicator.classList.remove('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); }
+            if(!container || !indicator || !map) return;
+            
+            if(trafficEnabled) { 
+                container.classList.add('map-traffic-mode'); 
+                indicator.classList.replace('bg-gray-300', 'bg-red-500'); 
+                indicator.classList.add('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); 
+
+                trafficLayerGroup = L.layerGroup().addTo(map);
+                DHAKA_TRAFFIC_DATA.forEach(route => {
+                    L.polyline(route.path, { color: route.color, weight: route.weight, opacity: 0.7 }).addTo(trafficLayerGroup);
+                });
+
+            } else { 
+                container.classList.remove('map-traffic-mode'); 
+                indicator.classList.replace('bg-red-500', 'bg-gray-300'); 
+                indicator.classList.remove('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); 
+                
+                if(trafficLayerGroup) {
+                    map.removeLayer(trafficLayerGroup);
+                    trafficLayerGroup = null;
+                }
+            }
         }
 
         function togglePriorityAlerts() {
@@ -784,7 +1134,7 @@
                 btn.classList.remove('border-red-300', 'bg-red-50');
                 icon.classList.replace('text-red-500', 'text-gray-400');
             }
-            updateMapFeatures(); // Re-render markers with pulses
+            updateMapFeatures(); 
         }
 
         function calculateAdvancedRoute() {
@@ -800,12 +1150,13 @@
 
             btn.classList.add('border-teal-400', 'bg-teal-50');
             
-            // Collect all "Urgent" projects across all sectors
             let urgentPoints = [];
             ALL_SECTORS.forEach(s => {
-                s.projects.forEach(p => {
-                    if(p.priority === "Urgent") urgentPoints.push([p.lat, p.lng]);
-                });
+                if(s.projects) {
+                    s.projects.forEach(p => {
+                        if(p.priority === "Urgent") urgentPoints.push([p.lat, p.lng]);
+                    });
+                }
             });
 
             if(urgentPoints.length < 2) {
@@ -814,7 +1165,6 @@
                 return;
             }
 
-            // Draw a mock optimized route connecting them
             optRouteLayer = L.polyline(urgentPoints, {
                 color: '#F59E0B', weight: 4, opacity: 0.8, className: 'opt-route-trail'
             }).addTo(map);
@@ -823,14 +1173,14 @@
         }
 
         function getDotIcon(isHighlighted, priorityStr = "") {
-            let color = "#0D9488"; // Teal default
+            let color = "#0D9488"; 
             let pulseClass = "";
             
             if(priorityStr === "Urgent") {
-                color = "#EF4444"; // Red
+                color = "#EF4444"; 
                 if(alertsEnabled) pulseClass = "marker-pulse-urgent";
             } else if (priorityStr === "3 Days") {
-                color = "#F59E0B"; // Orange
+                color = "#F59E0B"; 
             }
             
             const size = isHighlighted ? 16 : 12;
@@ -853,37 +1203,58 @@
             markers.forEach(m => map.removeLayer(m.marker));
             markers = [];
 
-            sector.projects.forEach((proj, idx) => {
-                const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false, proj.priority) }).addTo(map);
-                
-                // Advanced Card Popup
-                let badgeColor = proj.priority === "Urgent" ? "bg-red-100 text-red-700" : (proj.priority === "3 Days" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700");
-                const popupContent = `
-                    <div class="p-4 bg-white/95 w-56">
-                        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Building Profile</div>
-                        <h4 class="text-base font-bold text-gray-800 leading-tight mb-2">${proj.name}</h4>
-                        <div class="grid grid-cols-2 gap-2 mb-3">
-                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
-                                <div class="text-[8px] text-gray-500 uppercase">Total Flats</div>
-                                <div class="font-mono font-bold text-sm">${proj.flats}</div>
+            if(sector.projects) {
+                sector.projects.forEach((proj, idx) => {
+                    const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false, proj.priority) }).addTo(map);
+                    
+                    let badgeColor = proj.priority === "Urgent" ? "bg-red-100 text-red-700" : (proj.priority === "3 Days" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700");
+                    const popupContent = `
+                        <div class="p-4 bg-white/95 w-56">
+                            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Building Profile</div>
+                            <h4 class="text-base font-bold text-gray-800 leading-tight mb-2">${proj.name}</h4>
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                    <div class="text-[8px] text-gray-500 uppercase">Total Flats</div>
+                                    <div class="font-mono font-bold text-sm">${proj.flats}</div>
+                                </div>
+                                <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                    <div class="text-[8px] text-gray-500 uppercase">Active Meters</div>
+                                    <div class="font-mono font-bold text-sm">${proj.meters}</div>
+                                </div>
                             </div>
-                            <div class="bg-gray-50 p-2 rounded border border-gray-100">
-                                <div class="text-[8px] text-gray-500 uppercase">Active Meters</div>
-                                <div class="font-mono font-bold text-sm">${proj.meters}</div>
-                            </div>
+                            <div class="text-[9px] font-bold text-gray-500 uppercase mb-1">Cylinder Priority Level</div>
+                            <div class="px-2 py-1 rounded text-[10px] font-bold uppercase w-max ${badgeColor}">${proj.priority} Reserve</div>
                         </div>
-                        <div class="text-[9px] font-bold text-gray-500 uppercase mb-1">Cylinder Priority Level</div>
-                        <div class="px-2 py-1 rounded text-[10px] font-bold uppercase w-max ${badgeColor}">${proj.priority} Reserve</div>
-                    </div>
-                `;
-                
-                marker.bindPopup(popupContent, { closeButton: false, offset: [0, -5] });
-                
-                // Hover tooltip fallback
-                marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -10] });
-                
-                markers.push({ marker, proj, idx });
-            });
+                    `;
+                    
+                    marker.bindPopup(popupContent, { closeButton: false, offset: [0, -5] });
+                    marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -10] });
+                    
+                    markers.push({ marker, proj, idx });
+                });
+            }
+
+            if (sector.osmQuery && !sector.geoJsonCache) {
+                fetch(`https://nominatim.openstreetmap.org/search.php?q=${encodeURIComponent(sector.osmQuery)}&polygon_geojson=1&format=json`)
+                .then(res => res.json())
+                .then(data => {
+                    const geoResult = data.find(d => d.geojson && (d.geojson.type === 'Polygon' || d.geojson.type === 'MultiPolygon'));
+                    if (geoResult) {
+                        sector.geoJsonCache = geoResult.geojson;
+                        if (currentIdx === ALL_SECTORS.indexOf(sector) && map) {
+                            map.removeLayer(currentPolygon);
+                            currentPolygon = L.geoJSON(sector.geoJsonCache, { style: polyStyle }).addTo(map);
+                        }
+                    } else {
+                        sector.geoJsonCache = "NOT_FOUND";
+                    }
+                }).catch(e => {
+                    sector.geoJsonCache = "NOT_FOUND";
+                });
+            } else if (sector.geoJsonCache && sector.geoJsonCache !== "NOT_FOUND") {
+                map.removeLayer(currentPolygon);
+                currentPolygon = L.geoJSON(sector.geoJsonCache, { style: polyStyle }).addTo(map);
+            }
         }
 
         function navigateSector(dir) { goToSector((currentIdx + dir + ALL_SECTORS.length) % ALL_SECTORS.length); }
@@ -895,11 +1266,12 @@
             currentIdx = targetIdx;
             const newSector = ALL_SECTORS[currentIdx];
 
-            const hn = document.getElementById('dashboard-sector-name'); if(hn) hn.textContent = `ROUTING...`;
-            const pl = document.getElementById('project-list'); if(pl) pl.innerHTML = `<div class="p-8 flex items-center justify-center text-teal-600"><i data-lucide="loader-2" class="animate-spin mr-2"></i> Fetching Route</div>`;
+            const hn = document.getElementById('dashboard-sector-name'); if(hn) hn.textContent = `NAVIGATING...`;
+            const pl = document.getElementById('project-list'); if(pl) pl.innerHTML = `<div class="p-8 flex items-center justify-center text-teal-600"><i data-lucide="loader-2" class="animate-spin mr-2"></i> Panning Map</div>`;
             lucide.createIcons();
 
             if (currentPolygon) map.removeLayer(currentPolygon);
+            if(optRouteLayer) { map.removeLayer(optRouteLayer); optRouteLayer = null; document.getElementById('btn-route-plan').classList.remove('border-teal-400', 'bg-teal-50');}
             markers.forEach(m => map.removeLayer(m.marker)); markers = [];
 
             let routePts = [];
@@ -963,7 +1335,6 @@
             const p = sector.projects[index];
             map.flyTo([p.lat, p.lng], 16, { duration: 1.2 });
             
-            // Open popup logic
             markers.forEach(m => {
                 if (m.idx === index) {
                     m.marker.setIcon(getDotIcon(true, m.proj.priority));
@@ -971,6 +1342,16 @@
                 } else {
                     m.marker.setIcon(getDotIcon(false, m.proj.priority));
                     m.marker.closePopup();
+                }
+            });
+
+            document.querySelectorAll('.project-list-item').forEach((el, i) => {
+                if(i === index) {
+                    el.classList.add('border-teal-400', 'bg-white', 'shadow-md');
+                    el.classList.remove('border-white/50', 'bg-white/90');
+                } else {
+                    el.classList.remove('border-teal-400', 'bg-white', 'shadow-md');
+                    el.classList.add('border-white/50', 'bg-white/90');
                 }
             });
         }
@@ -994,7 +1375,9 @@
             const s = ALL_SECTORS[currentIdx]; 
             const hn = document.getElementById('header-sector-name'); if(hn) hn.textContent = s.sector; 
             const dsn = document.getElementById('dashboard-sector-name'); if(dsn) dsn.textContent = s.sector; 
-            const pc = document.getElementById('project-count'); if(pc) pc.textContent = s.projects.length;
+            
+            const pCount = s.projects ? s.projects.length : 0;
+            const pc = document.getElementById('project-count'); if(pc) pc.textContent = pCount;
 
             const lp = document.getElementById('label-prev-sector'); if(lp) lp.textContent = ALL_SECTORS[(currentIdx - 1 + ALL_SECTORS.length) % ALL_SECTORS.length].sector; 
             const ln = document.getElementById('label-next-sector'); if(ln) ln.textContent = ALL_SECTORS[(currentIdx + 1) % ALL_SECTORS.length].sector;
@@ -1002,33 +1385,38 @@
             const l = document.getElementById('project-list'); 
             if(l) {
                 l.innerHTML = ''; 
-                s.projects.forEach((p, i) => { 
-                    let bCol = p.priority === "Urgent" ? "text-red-500" : (p.priority === "3 Days" ? "text-orange-500" : "text-green-500");
-                    l.innerHTML += `<div onclick="selectProject(${i})" class="p-4 bg-white rounded-2xl flex items-center justify-between border border-gray-100 shadow-sm cursor-pointer hover:border-teal-300 transition-all">
-                        <div>
-                            <div class="text-sm font-bold text-gray-800">${p.name}</div>
-                            <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
-                        </div>
-                        <div class="flex flex-col items-end gap-1">
-                            <span class="text-[9px] font-bold uppercase ${bCol}">${p.priority}</span>
-                            <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-0.5 rounded"><i data-lucide="navigation" class="w-3 h-3 inline"></i></div>
-                        </div>
-                    </div>`; 
-                });
+                if(s.projects) {
+                    s.projects.forEach((p, i) => { 
+                        let bCol = p.priority === "Urgent" ? "text-red-500" : (p.priority === "3 Days" ? "text-orange-500" : "text-green-500");
+                        l.innerHTML += `<div onclick="selectProject(${i})" class="project-list-item p-4 bg-white/90 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-300 transition-all group cursor-pointer shadow-sm">
+                            <div>
+                                <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${p.name}</div>
+                                <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
+                            </div>
+                            <div class="flex flex-col items-end gap-1">
+                                <span class="text-[9px] font-bold uppercase ${bCol}">${p.priority}</span>
+                                <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-0.5 rounded"><i data-lucide="navigation" class="w-3 h-3 inline"></i></div>
+                            </div>
+                        </div>`; 
+                    });
+                } else {
+                     l.innerHTML = `<div class="p-4 text-xs text-gray-400 text-center italic">No target sites mapped yet.</div>`;
+                }
             }
             lucide.createIcons(); 
         }
 
-        // Feature: Minimize Panels
         function minimizeAllViews() {
             if(currentActiveView !== null) {
                 const el = document.getElementById(`view-${currentActiveView}`);
                 const btn = document.getElementById(`nav-${currentActiveView}`);
-                if(el) el.classList.replace('view-visible', 'view-hidden');
+                if(el) {
+                    el.classList.replace('view-visible', 'view-hidden');
+                    if(el.classList.contains('panel-fullscreen')) toggleFullscreen(`view-${currentActiveView}`);
+                }
                 if(btn) { btn.classList.replace('bg-teal-50', 'text-gray-300'); btn.classList.remove('text-teal-600'); }
-                currentActiveView = null; // Clear view
+                currentActiveView = null; 
                 
-                // Show Map Controls completely
                 const mapControls = document.getElementById('map-controls');
                 if(mapControls) {
                     mapControls.style.opacity = '1';
@@ -1038,7 +1426,6 @@
         }
 
         function switchView(targetView) {
-            // Toggle Minimizing logic
             if (currentActiveView === targetView) {
                 minimizeAllViews();
                 return;
@@ -1058,7 +1445,13 @@
             VIEW_NAMES.forEach(v => {
                 const el = document.getElementById(`view-${v}`); const btn = document.getElementById(`nav-${v}`); if(!el || !btn) return;
                 if(v === targetView) { el.classList.replace('view-hidden', 'view-visible'); btn.classList.replace('text-gray-300', 'bg-teal-50'); btn.classList.add('text-teal-600'); } 
-                else { if (el.classList.contains('view-visible')) el.classList.replace('view-visible', 'view-hidden'); btn.classList.replace('bg-teal-50', 'text-gray-300'); btn.classList.remove('text-teal-600'); }
+                else { 
+                    if (el.classList.contains('view-visible')) {
+                        el.classList.replace('view-visible', 'view-hidden');
+                        if(el.classList.contains('panel-fullscreen')) toggleFullscreen(`view-${v}`);
+                    }
+                    btn.classList.replace('bg-teal-50', 'text-gray-300'); btn.classList.remove('text-teal-600'); 
+                }
             });
         }
     </script>
