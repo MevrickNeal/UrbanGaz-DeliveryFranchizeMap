@@ -1,350 +1,440 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
-  Navigation, 
-  Map as MapIcon, 
-  Target, 
-  ChevronRight, 
-  ChevronLeft, 
-  Activity, 
-  LayoutGrid, 
-  Layers,
-  MapPin,
-  TrendingUp,
-  FileText,
-  User,
-  Plus,
-  Save,
-  Truck,
-  Database
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-
-// --- STYLIZED LPG CYLINDER ICON ---
-const LPGCylinderIcon = ({ size = 24, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M7 8C7 5.79086 8.79086 4 11 4H13C15.2091 4 17 5.79086 17 8V10H7V8Z" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeWidth="1.5" />
-    <rect x="6" y="10" width="12" height="10" rx="2" fill="currentColor" fillOpacity="0.1" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M9 4V2H15V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    <path d="M10 13H14M12 11V15" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-  </svg>
-);
-
-// --- SECTOR COORDINATES (DHAKA) ---
-const INITIAL_DATA = [
-  {
-    sector: "JOLSHIRI ABASHON",
-    coords: [23.8223, 90.4873], // Actual Jolshiri area
-    projects: [
-      { name: "ZOITA", loc: "SEC-12", lat: 23.823, lng: 90.488 },
-      { name: "ASA TOWER", loc: "SEC-11", lat: 23.821, lng: 90.485 }
-    ],
-    stats: { delivery: "High", capacity: "85%", status: "Active" }
-  },
-  {
-    sector: "KHILKHET",
-    coords: [23.8315, 90.4178],
-    projects: [
-      { name: "NOOR SHELTER", loc: "MODDHOPARA", lat: 23.832, lng: 90.418 },
-      { name: "NF TOWER", loc: "BARUA", lat: 23.835, lng: 90.415 }
-    ],
-    stats: { delivery: "Medium", capacity: "62%", status: "Stable" }
-  },
-  {
-    sector: "UTTARA",
-    coords: [23.8759, 90.3795],
-    projects: [
-      { name: "MUZAFFAR GARDEN CITY", loc: "SEC-10", lat: 23.876, lng: 90.380 }
-    ],
-    stats: { delivery: "High", capacity: "78%", status: "Active" }
-  }
-];
-
-const App = () => {
-  const [view, setView] = useState('dashboard'); // 'dashboard' or 'admin'
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [projects, setProjects] = useState(INITIAL_DATA);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const mapRef = useRef(null);
-  const truckMarkerRef = useRef(null);
-
-  const currentSector = projects[currentIdx];
-
-  // Load Leaflet
-  useEffect(() => {
-    if (!window.L) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => initMap();
-      document.body.appendChild(script);
-    } else {
-      initMap();
-    }
-
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, []);
-
-  const initMap = () => {
-    if (mapRef.current) return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URBN GAZ Tactical Dashboard</title>
     
-    // Create map with a clean "CartoDB Positron" light theme
-    const map = window.L.map('map-container', {
-      zoomControl: false,
-      attributionControl: false
-    }).setView(INITIAL_DATA[0].coords, 14);
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
-    }).addTo(map);
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-    mapRef.current = map;
-    setMapLoaded(true);
-  };
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #FDFDFF;
+            color: #2D3436;
+        }
 
-  // Handle Sector Navigation with "Road Path" animation
-  useEffect(() => {
-    if (mapLoaded && mapRef.current && !isNavigating) {
-      const map = mapRef.current;
-      const targetCoords = currentSector.coords;
-
-      setIsNavigating(true);
-
-      // Simple road path simulation (interpolating points to look like driving)
-      // In a production app, you'd call a Routing API here.
-      map.flyTo(targetCoords, 14, { duration: 1.5 });
-
-      setTimeout(() => {
-        setIsNavigating(false);
-      }, 1500);
-    }
-  }, [currentIdx, mapLoaded]);
-
-  return (
-    <div className="min-h-screen bg-[#FDFDFF] text-[#2D3436] font-sans selection:bg-teal-100 flex overflow-hidden">
-      
-      {/* --- SIDEBAR --- */}
-      <nav className="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 gap-10 z-[1001] shadow-sm">
-        <div className="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer">
-          <LPGCylinderIcon className="text-white" size={24} />
-        </div>
-        <div className="flex flex-col gap-8">
-          <NavItem 
-            icon={<LayoutGrid size={22} />} 
-            active={view === 'dashboard'} 
-            onClick={() => setView('dashboard')}
-          />
-          <NavItem 
-            icon={<Database size={22} />} 
-            active={view === 'admin'} 
-            onClick={() => setView('admin')}
-          />
-          <NavItem icon={<Activity size={22} />} />
-          <NavItem icon={<Layers size={22} />} />
-        </div>
-        <div className="mt-auto">
-          <NavItem icon={<User size={22} />} />
-        </div>
-      </nav>
-
-      {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 relative flex flex-col overflow-hidden">
-        
-        {/* BACKGROUND MAP */}
-        <div id="map-container" className="absolute inset-0 z-0 grayscale-[0.5] contrast-[1.1]" />
-        
-        {/* GLASS OVERLAY (Subtle Vignette) */}
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-white/20 via-transparent to-white/40 z-1" />
-
-        <header className="p-8 flex justify-between items-center z-10 relative">
-          <div className="bg-white/40 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-sm">
-            <h4 className="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-1 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
-              Live Logistics • URBN GAZ
-            </h4>
-            <h1 className="text-2xl font-light tracking-tight text-gray-800">
-              {view === 'dashboard' ? 'Delivery' : 'Franchise'} <span className="font-semibold text-black">Portal</span>
-            </h1>
-          </div>
-          
-          <div className="flex gap-4">
-            {view === 'dashboard' && (
-               <div className="px-6 py-3 bg-white/80 backdrop-blur-xl border border-white shadow-xl rounded-full text-sm font-semibold flex items-center gap-3">
-                  <Truck size={18} className="text-teal-600" />
-                  <span className="text-gray-400 font-normal">Active Route:</span>
-                  <span>{currentSector.sector}</span>
-               </div>
-            )}
-          </div>
-        </header>
-
-        {/* --- VIEW SWITCHER --- */}
-        <div className="flex-1 flex items-end p-8 gap-8 z-10 relative">
-          <AnimatePresence mode="wait">
-            {view === 'dashboard' ? (
-              <motion.div 
-                key="dashboard"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="w-full max-w-md bg-white/60 backdrop-blur-2xl border border-white/80 rounded-[40px] p-8 shadow-2xl shadow-gray-200/50"
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <span className="inline-block px-3 py-1 bg-teal-50 text-teal-600 rounded-lg text-[10px] font-bold tracking-widest uppercase mb-2">
-                      Navigation Module
-                    </span>
-                    <h2 className="text-3xl font-bold tracking-tighter text-gray-800">{currentSector.sector}</h2>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setCurrentIdx(p => (p - 1 + projects.length) % projects.length)}
-                      className="p-3 bg-white rounded-full shadow-lg border border-gray-50 hover:scale-105 transition-transform"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <button 
-                      onClick={() => setCurrentIdx(p => (p + 1) % projects.length)}
-                      className="p-3 bg-teal-600 text-white rounded-full shadow-lg hover:scale-105 transition-transform"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <StatItem label="Zone Status" value={currentSector.stats.status} />
-                  <StatItem label="Capacity" value={currentSector.stats.capacity} />
-                </div>
-
-                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  <h3 className="text-[10px] font-bold text-gray-400 tracking-widest uppercase flex items-center gap-2 mb-4">
-                    <MapPin size={12} /> Target Sites ({currentSector.projects.length})
-                  </h3>
-                  {currentSector.projects.map((p, i) => (
-                    <div key={i} className="p-4 bg-white/80 rounded-2xl flex items-center justify-between border border-white/50 group">
-                      <div>
-                        <div className="text-sm font-bold text-gray-800">{p.name}</div>
-                        <div className="text-[10px] text-gray-400 font-medium uppercase">{p.loc}</div>
-                      </div>
-                      <div className="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-1 rounded">
-                        {p.lat.toFixed(3)}, {p.lng.toFixed(3)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="admin"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                className="w-full max-w-4xl bg-white/90 backdrop-blur-2xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10"
-              >
-                {/* ADMIN INPUTS */}
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-                    <Plus className="text-teal-600" /> Register New Project Site
-                  </h2>
-                  <div className="grid grid-cols-2 gap-6">
-                    <InputGroup label="Project Name" placeholder="e.g. ASA TOWER" />
-                    <InputGroup label="Sector / Area" placeholder="e.g. JOLSHIRI SEC-12" />
-                    <InputGroup label="Latitude (GPS)" placeholder="23.8223" />
-                    <InputGroup label="Longitude (GPS)" placeholder="90.4873" />
-                  </div>
-                  
-                  <div className="mt-10 p-6 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/50 flex flex-col items-center justify-center group cursor-pointer hover:bg-white transition-all">
-                    <FileText className="text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm font-semibold">Upload Billing Excel (.xlsx)</span>
-                    <span className="text-[10px] text-gray-400">Sync consumption data with franchise portal</span>
-                  </div>
-
-                  <button className="mt-8 w-full py-4 bg-teal-600 text-white rounded-2xl font-bold shadow-lg shadow-teal-100 flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors">
-                    <Save size={18} /> Update Fleet Data
-                  </button>
-                </div>
-
-                {/* FRANCHISE STATUS */}
-                <div className="w-1/3 bg-gray-50/50 rounded-3xl p-6 border border-gray-100">
-                   <h3 className="text-xs font-bold text-gray-400 tracking-widest uppercase mb-6">Connected Franchises</h3>
-                   <div className="space-y-4">
-                     <FranchiseStatus name="Jolshiri Hub" status="Online" active />
-                     <FranchiseStatus name="Khilkhet Depot" status="Online" active />
-                     <FranchiseStatus name="Uttara Point" status="Offline" />
-                   </div>
-                   <div className="mt-10 p-4 bg-teal-600 rounded-2xl text-white">
-                      <div className="text-[10px] font-bold opacity-70 uppercase mb-1">Monthly Billing Total</div>
-                      <div className="text-2xl font-bold">৳ 4,12,500</div>
-                      <div className="mt-4 flex items-center gap-2 text-[10px] font-bold">
-                        <TrendingUp size={12} /> +12% vs last month
-                      </div>
-                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-      </main>
-
-      <style>{`
+        /* Custom Scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+
+        /* Leaflet Overrides */
         .leaflet-container { background: transparent !important; }
         .leaflet-marker-icon { border: none !important; background: none !important; }
-      `}</style>
-    </div>
-  );
-};
+        
+        /* Map Background Treatment */
+        #map-container {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            filter: grayscale(0.5) contrast(1.1);
+            transition: all 1s ease;
+        }
 
-// --- SUB-COMPONENTS ---
+        /* Glass Overlay */
+        .glass-vignette {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent, rgba(255,255,255,0.4));
+            z-index: 1;
+        }
 
-const NavItem = ({ icon, active = false, onClick }) => (
-  <div 
-    onClick={onClick}
-    className={`p-3 rounded-2xl cursor-pointer transition-all ${active ? 'bg-teal-50 text-teal-600 shadow-sm' : 'text-gray-300 hover:text-gray-500 hover:bg-gray-50'}`}
-  >
-    {icon}
-  </div>
-);
+        /* View Transitions */
+        .view-panel {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .view-hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+            position: absolute;
+        }
+        .view-visible {
+            opacity: 1;
+            transform: translateY(0);
+            position: relative;
+        }
 
-const StatItem = ({ label, value }) => (
-  <div className="p-4 bg-white/80 rounded-2xl border border-white">
-    <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">{label}</div>
-    <div className="text-lg font-bold text-gray-800">{value}</div>
-  </div>
-);
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="selection:bg-teal-100 flex h-screen w-screen">
 
-const InputGroup = ({ label, placeholder }) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">{label}</label>
-    <input 
-      type="text" 
-      placeholder={placeholder}
-      className="px-5 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"
-    />
-  </div>
-);
+    <!-- SIDEBAR -->
+    <nav class="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 gap-10 z-[1001] shadow-sm flex-shrink-0">
+        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer">
+            <!-- Custom LPG Cylinder Icon -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white">
+                <path d="M7 8C7 5.79086 8.79086 4 11 4H13C15.2091 4 17 5.79086 17 8V10H7V8Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.5" />
+                <rect x="6" y="10" width="12" height="10" rx="2" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="1.5" />
+                <path d="M9 4V2H15V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                <path d="M10 13H14M12 11V15" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
+            </svg>
+        </div>
+        <div class="flex flex-col gap-8 w-full px-4">
+            <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm">
+                <i data-lucide="layout-grid" class="w-[22px] h-[22px]"></i>
+            </button>
+            <button onclick="switchView('admin')" id="nav-admin" class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+                <i data-lucide="database" class="w-[22px] h-[22px]"></i>
+            </button>
+            <button class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+                <i data-lucide="activity" class="w-[22px] h-[22px]"></i>
+            </button>
+        </div>
+        <div class="mt-auto w-full px-4">
+            <button class="nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50">
+                <i data-lucide="user" class="w-[22px] h-[22px]"></i>
+            </button>
+        </div>
+    </nav>
 
-const FranchiseStatus = ({ name, status, active = false }) => (
-  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
-    <div className="flex items-center gap-3">
-      <div className={`w-2 h-2 rounded-full ${active ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`} />
-      <span className="text-xs font-bold text-gray-700">{name}</span>
-    </div>
-    <span className={`text-[10px] font-bold ${active ? 'text-green-600' : 'text-gray-400'}`}>{status}</span>
-  </div>
-);
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 relative flex flex-col overflow-hidden">
+        
+        <!-- MAP BACKGROUND -->
+        <div id="map-container"></div>
+        <div class="glass-vignette"></div>
 
-export default App;
+        <!-- HEADER -->
+        <header class="p-8 flex justify-between items-center z-10 relative">
+            <div class="bg-white/40 backdrop-blur-md p-4 rounded-3xl border border-white/50 shadow-sm">
+                <h4 class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-1 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                    Live Logistics • URBN GAZ
+                </h4>
+                <h1 class="text-2xl font-light tracking-tight text-gray-800">
+                    <span id="header-title-prefix">Delivery</span> <span class="font-semibold text-black">Portal</span>
+                </h1>
+            </div>
+            
+            <div id="active-route-badge" class="flex gap-4">
+                <div class="px-6 py-3 bg-white/80 backdrop-blur-xl border border-white shadow-xl rounded-full text-sm font-semibold flex items-center gap-3">
+                    <i data-lucide="truck" class="w-[18px] h-[18px] text-teal-600"></i>
+                    <span class="text-gray-400 font-normal">Active Route:</span>
+                    <span id="header-sector-name">JOLSHIRI ABASHON</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- VIEW CONTAINER -->
+        <div class="flex-1 flex items-end p-8 gap-8 z-10 relative pb-12 w-full max-w-7xl mx-auto">
+            
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard" class="view-panel view-visible w-full max-w-md bg-white/60 backdrop-blur-2xl border border-white/80 rounded-[40px] p-8 shadow-2xl shadow-gray-200/50">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <span class="inline-block px-3 py-1 bg-teal-50 text-teal-600 rounded-lg text-[10px] font-bold tracking-widest uppercase mb-2">
+                            Navigation Module
+                        </span>
+                        <h2 id="dashboard-sector-name" class="text-3xl font-bold tracking-tighter text-gray-800">JOLSHIRI ABASHON</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="navigateSector(-1)" class="p-3 bg-white rounded-full shadow-lg border border-gray-50 hover:scale-105 transition-transform">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <button onclick="navigateSector(1)" class="p-3 bg-teal-600 text-white rounded-full shadow-lg hover:scale-105 transition-transform">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="p-4 bg-white/80 rounded-2xl border border-white">
+                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Zone Status</div>
+                        <div id="dashboard-status" class="text-lg font-bold text-gray-800">Active</div>
+                    </div>
+                    <div class="p-4 bg-white/80 rounded-2xl border border-white">
+                        <div class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Capacity</div>
+                        <div id="dashboard-capacity" class="text-lg font-bold text-gray-800">85%</div>
+                    </div>
+                </div>
+
+                <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    <h3 class="text-[10px] font-bold text-gray-400 tracking-widest uppercase flex items-center gap-2 mb-4">
+                        <i data-lucide="map-pin" class="w-3 h-3"></i> Target Sites (<span id="project-count">0</span>)
+                    </h3>
+                    <div id="project-list" class="space-y-3">
+                        <!-- Projects injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN VIEW -->
+            <div id="view-admin" class="view-panel view-hidden w-full bg-white/90 backdrop-blur-2xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10">
+                
+                <!-- Input Form -->
+                <div class="flex-1">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                        <i data-lucide="plus" class="text-teal-600"></i> Register New Project Site
+                    </h2>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Project Name</label>
+                            <input type="text" placeholder="e.g. ASA TOWER" class="px-5 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Sector / Area</label>
+                            <input type="text" placeholder="e.g. JOLSHIRI SEC-12" class="px-5 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Latitude (GPS)</label>
+                            <input type="text" placeholder="23.8223" class="px-5 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Longitude (GPS)</label>
+                            <input type="text" placeholder="90.4873" class="px-5 py-3 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-teal-100 transition-all text-sm"/>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-10 p-6 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50 flex flex-col items-center justify-center group cursor-pointer hover:bg-white hover:border-teal-300 transition-all">
+                        <i data-lucide="file-text" class="text-teal-600 mb-2 group-hover:scale-110 transition-transform w-8 h-8"></i>
+                        <span class="text-sm font-semibold text-gray-700">Upload Billing Excel (.xlsx)</span>
+                        <span class="text-[10px] text-gray-400 mt-1">Sync consumption data with franchise portal</span>
+                    </div>
+
+                    <button class="mt-8 w-full py-4 bg-teal-600 text-white rounded-2xl font-bold shadow-lg shadow-teal-100 flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors">
+                        <i data-lucide="save" class="w-[18px] h-[18px]"></i> Update Fleet Data
+                    </button>
+                </div>
+
+                <!-- Franchise Status -->
+                <div class="w-1/3 min-w-[300px] bg-gray-50/50 rounded-3xl p-6 border border-gray-100">
+                    <h3 class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-6">Connected Franchises</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                <span class="text-xs font-bold text-gray-700">Jolshiri Hub</span>
+                            </div>
+                            <span class="text-[10px] font-bold text-green-600">Online</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                <span class="text-xs font-bold text-gray-700">Khilkhet Depot</span>
+                            </div>
+                            <span class="text-[10px] font-bold text-green-600">Online</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-50 shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+                                <span class="text-xs font-bold text-gray-700">Uttara Point</span>
+                            </div>
+                            <span class="text-[10px] font-bold text-gray-400">Offline</span>
+                        </div>
+                    </div>
+                    <div class="mt-10 p-5 bg-teal-600 rounded-2xl text-white shadow-xl shadow-teal-600/30">
+                        <div class="text-[10px] font-bold opacity-80 uppercase tracking-wider mb-1">Monthly Billing Total</div>
+                        <div class="text-3xl font-bold tracking-tight">৳ 4,12,500</div>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] font-bold bg-white/20 px-3 py-1.5 rounded-lg w-max backdrop-blur-sm">
+                            <i data-lucide="trending-up" class="w-3 h-3"></i> +12% vs last month
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // --- 1. FULL PROJECT DATA (14 PROJECTS) ---
+        const ALL_SECTORS = [
+            {
+                sector: "JOLSHIRI ABASHON",
+                coords: [23.8223, 90.4873], 
+                stats: { status: "Active Focus", capacity: "85%" },
+                projects: [
+                    { name: "ZOITA", loc: "SEC-12, JOLSHIRI", lat: 23.823, lng: 90.488 },
+                    { name: "MAHFUZ ALAM RESIDENCE", loc: "SEC-16, JOLSHIRI", lat: 23.824, lng: 90.486 },
+                    { name: "SURAIYA DREAM", loc: "SEC-16, JOLSHIRI", lat: 23.821, lng: 90.485 },
+                    { name: "ASA TOWER", loc: "SEC-11, JOLSHIRI", lat: 23.820, lng: 90.489 },
+                    { name: "SHOKRANA NIBASH", loc: "SEC-16, JOLSHIRI", lat: 23.825, lng: 90.484 },
+                    { name: "AMINUL HOQUE NIBASH", loc: "SEC-16, JOLSHIRI", lat: 23.826, lng: 90.487 }
+                ]
+            },
+            {
+                sector: "KHILKHET",
+                coords: [23.8315, 90.4178],
+                stats: { status: "Stable Growth", capacity: "62%" },
+                projects: [
+                    { name: "NOOR SHELTER", loc: "MODDHOPARA, KHILKHET", lat: 23.832, lng: 90.418 },
+                    { name: "MIZAN HOUSE", loc: "UTTARPARA, KHILKHET", lat: 23.834, lng: 90.416 },
+                    { name: "NF TOWER", loc: "BARUA, KHILKHET", lat: 23.835, lng: 90.415 },
+                    { name: "NIZAMUDDIN HOUSE", loc: "MALEK MATABBOR, KHILKHET", lat: 23.830, lng: 90.420 }
+                ]
+            },
+            {
+                sector: "DAKKHIN KHAN",
+                coords: [23.8447, 90.4130],
+                stats: { status: "New Expansion", capacity: "40%" },
+                projects: [
+                    { name: "SOTOTA TOWER", loc: "KAWLAR, DAKKHIN KHAN", lat: 23.845, lng: 90.413 }
+                ]
+            },
+            {
+                sector: "GULSHAN / MOHAKHALI",
+                coords: [23.7925, 90.4078],
+                stats: { status: "Premium Tier", capacity: "92%" },
+                projects: [
+                    { name: "MAX ADN", loc: "GULSHAN", lat: 23.793, lng: 90.410 },
+                    { name: "MAX SHORIF", loc: "MOHAKHALI DOHS", lat: 23.785, lng: 90.398 }
+                ]
+            },
+            {
+                sector: "UTTARA",
+                coords: [23.8759, 90.3795],
+                stats: { status: "Active Delivery", capacity: "78%" },
+                projects: [
+                    { name: "MUZAFFAR GARDEN CITY", loc: "SEC-10, UTTARA", lat: 23.876, lng: 90.380 }
+                ]
+            }
+        ];
+
+        // --- 2. STATE MANAGEMENT ---
+        let currentIdx = 0;
+        let map = null;
+        let markers = [];
+
+        // --- 3. INITIALIZATION ---
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons(); // Render initial icons
+            initMap();
+            renderDashboard();
+        });
+
+        // --- 4. MAP LOGIC ---
+        function initMap() {
+            map = L.map('map-container', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView(ALL_SECTORS[0].coords, 14);
+
+            // Clean CartoDB Light theme
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            updateMapMarkers();
+        }
+
+        function updateMapMarkers() {
+            // Remove old markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            const sector = ALL_SECTORS[currentIdx];
+            
+            // Custom CSS dot marker
+            const customIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="width: 14px; height: 14px; background-color: #0D9488; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(13,148,136,0.5);"></div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+
+            // Place markers for all projects in current sector
+            sector.projects.forEach(proj => {
+                const marker = L.marker([proj.lat, proj.lng], { icon: customIcon }).addTo(map);
+                markers.push(marker);
+            });
+        }
+
+        // --- 5. UI UPDATES & NAVIGATION ---
+        function navigateSector(direction) {
+            // Update Index
+            currentIdx = (currentIdx + direction + ALL_SECTORS.length) % ALL_SECTORS.length;
+            const sector = ALL_SECTORS[currentIdx];
+
+            // Trigger Map Flyover ("Truck Routing")
+            if(map) {
+                map.flyTo(sector.coords, 14, { duration: 1.5, easeLinearity: 0.25 });
+            }
+
+            // Update UI
+            renderDashboard();
+            updateMapMarkers();
+        }
+
+        function renderDashboard() {
+            const sector = ALL_SECTORS[currentIdx];
+            
+            // Header text
+            document.getElementById('header-sector-name').textContent = sector.sector;
+            
+            // Panel text
+            document.getElementById('dashboard-sector-name').textContent = sector.sector;
+            document.getElementById('dashboard-status').textContent = sector.stats.status;
+            document.getElementById('dashboard-capacity').textContent = sector.stats.capacity;
+            document.getElementById('project-count').textContent = sector.projects.length;
+
+            // Render projects list
+            const listEl = document.getElementById('project-list');
+            listEl.innerHTML = ''; // Clear old
+
+            sector.projects.forEach(p => {
+                listEl.innerHTML += `
+                    <div class="p-4 bg-white/80 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-200 hover:bg-white transition-all group cursor-default">
+                        <div>
+                            <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${p.name}</div>
+                            <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
+                        </div>
+                        <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-1 rounded-md border border-teal-100">
+                            ${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- 6. VIEW SWITCHER (Dashboard vs Admin) ---
+        function switchView(viewName) {
+            const vDash = document.getElementById('view-dashboard');
+            const vAdmin = document.getElementById('view-admin');
+            const bDash = document.getElementById('nav-dashboard');
+            const bAdmin = document.getElementById('nav-admin');
+            const activeBadge = document.getElementById('active-route-badge');
+            const titlePrefix = document.getElementById('header-title-prefix');
+
+            if (viewName === 'dashboard') {
+                // Show Dashboard, Hide Admin
+                vDash.classList.replace('view-hidden', 'view-visible');
+                vAdmin.classList.replace('view-visible', 'view-hidden');
+                activeBadge.style.display = 'flex';
+                titlePrefix.textContent = 'Delivery';
+
+                // Update Sidebar Styles
+                bDash.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
+                bAdmin.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
+            } else {
+                // Show Admin, Hide Dashboard
+                vAdmin.classList.replace('view-hidden', 'view-visible');
+                vDash.classList.replace('view-visible', 'view-hidden');
+                activeBadge.style.display = 'none';
+                titlePrefix.textContent = 'Franchise';
+
+                // Update Sidebar Styles
+                bAdmin.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
+                bDash.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
+            }
+        }
+    </script>
+</body>
+</html>
