@@ -70,6 +70,34 @@
         }
 
         .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Map Tooltips & Animations */
+        .custom-tooltip {
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #0D9488;
+            border-radius: 6px;
+            color: #0D9488;
+            font-weight: bold;
+            font-size: 11px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .pulse-icon {
+            width: 16px; height: 16px;
+            background-color: #0D9488;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 15px 5px rgba(13,148,136,0.6);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(13,148,136,0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(13,148,136,0); }
+            100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
+        }
+        .animated-route path {
+            stroke-dasharray: 2000;
+            stroke-dashoffset: 2000;
+        }
     </style>
 </head>
 <body class="selection:bg-teal-100 flex h-screen w-screen">
@@ -144,10 +172,10 @@
                         <h2 id="dashboard-sector-name" class="text-3xl font-bold tracking-tighter text-gray-800">JOLSHIRI ABASHON</h2>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="navigateSector(-1)" class="p-3 bg-white rounded-full shadow-lg border border-gray-50 hover:scale-105 transition-transform">
+                        <button onclick="navigateSector(-1)" class="p-3 bg-white rounded-full shadow-lg border border-gray-50 hover:scale-105 transition-transform active:scale-95">
                             <i data-lucide="chevron-left" class="w-5 h-5"></i>
                         </button>
-                        <button onclick="navigateSector(1)" class="p-3 bg-teal-600 text-white rounded-full shadow-lg hover:scale-105 transition-transform">
+                        <button onclick="navigateSector(1)" class="p-3 bg-teal-600 text-white rounded-full shadow-lg shadow-teal-200 hover:scale-105 transition-transform active:scale-95">
                             <i data-lucide="chevron-right" class="w-5 h-5"></i>
                         </button>
                     </div>
@@ -176,7 +204,6 @@
 
             <!-- ADMIN VIEW -->
             <div id="view-admin" class="view-panel view-hidden w-full bg-white/90 backdrop-blur-2xl border border-white rounded-[40px] p-10 shadow-2xl flex gap-10">
-                
                 <!-- Input Form -->
                 <div class="flex-1">
                     <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
@@ -255,11 +282,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // --- 1. FULL PROJECT DATA (14 PROJECTS) ---
+        // --- 1. FULL PROJECT DATA WITH BOUNDING POLYGONS ---
         const ALL_SECTORS = [
             {
                 sector: "JOLSHIRI ABASHON",
                 coords: [23.8223, 90.4873], 
+                polygon: [[23.828, 90.482], [23.828, 90.491], [23.818, 90.491], [23.818, 90.482]],
                 stats: { status: "Active Focus", capacity: "85%" },
                 projects: [
                     { name: "ZOITA", loc: "SEC-12, JOLSHIRI", lat: 23.823, lng: 90.488 },
@@ -273,6 +301,7 @@
             {
                 sector: "KHILKHET",
                 coords: [23.8315, 90.4178],
+                polygon: [[23.837, 90.413], [23.837, 90.422], [23.828, 90.422], [23.828, 90.413]],
                 stats: { status: "Stable Growth", capacity: "62%" },
                 projects: [
                     { name: "NOOR SHELTER", loc: "MODDHOPARA, KHILKHET", lat: 23.832, lng: 90.418 },
@@ -284,6 +313,7 @@
             {
                 sector: "DAKKHIN KHAN",
                 coords: [23.8447, 90.4130],
+                polygon: [[23.847, 90.411], [23.847, 90.415], [23.843, 90.415], [23.843, 90.411]],
                 stats: { status: "New Expansion", capacity: "40%" },
                 projects: [
                     { name: "SOTOTA TOWER", loc: "KAWLAR, DAKKHIN KHAN", lat: 23.845, lng: 90.413 }
@@ -292,6 +322,7 @@
             {
                 sector: "GULSHAN / MOHAKHALI",
                 coords: [23.7925, 90.4078],
+                polygon: [[23.795, 90.396], [23.795, 90.412], [23.783, 90.412], [23.783, 90.396]],
                 stats: { status: "Premium Tier", capacity: "92%" },
                 projects: [
                     { name: "MAX ADN", loc: "GULSHAN", lat: 23.793, lng: 90.410 },
@@ -301,6 +332,7 @@
             {
                 sector: "UTTARA",
                 coords: [23.8759, 90.3795],
+                polygon: [[23.878, 90.378], [23.878, 90.382], [23.874, 90.382], [23.874, 90.378]],
                 stats: { status: "Active Delivery", capacity: "78%" },
                 projects: [
                     { name: "MUZAFFAR GARDEN CITY", loc: "SEC-10, UTTARA", lat: 23.876, lng: 90.380 }
@@ -312,6 +344,8 @@
         let currentIdx = 0;
         let map = null;
         let markers = [];
+        let currentPolygon = null;
+        let activeRouteLine = null;
 
         // --- 3. INITIALIZATION ---
         document.addEventListener("DOMContentLoaded", () => {
@@ -320,88 +354,159 @@
             renderDashboard();
         });
 
-        // --- 4. MAP LOGIC ---
+        // --- 4. MAP LOGIC & RENDERING ---
         function initMap() {
             map = L.map('map-container', {
                 zoomControl: false,
                 attributionControl: false
             }).setView(ALL_SECTORS[0].coords, 14);
 
-            // Clean CartoDB Light theme
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19
             }).addTo(map);
 
-            updateMapMarkers();
+            updateMapFeatures();
         }
 
-        function updateMapMarkers() {
-            // Remove old markers
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
+        // Generate Marker Icons (Standard or Highlighted/Pulsing)
+        function getDotIcon(isHighlighted) {
+            return L.divIcon({
+                className: 'custom-div-icon',
+                html: isHighlighted 
+                    ? `<div class="pulse-icon"></div>`
+                    : `<div style="width: 12px; height: 12px; background-color: #0D9488; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 8px rgba(13,148,136,0.5);"></div>`,
+                iconSize: isHighlighted ? [16, 16] : [12, 12],
+                iconAnchor: isHighlighted ? [8, 8] : [6, 6]
+            });
+        }
 
+        function updateMapFeatures() {
             const sector = ALL_SECTORS[currentIdx];
             
-            // Custom CSS dot marker
-            const customIcon = L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="width: 14px; height: 14px; background-color: #0D9488; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(13,148,136,0.5);"></div>`,
-                iconSize: [14, 14],
-                iconAnchor: [7, 7]
-            });
+            // 1. Draw Sector Polygon Outline
+            if (currentPolygon) map.removeLayer(currentPolygon);
+            currentPolygon = L.polygon(sector.polygon, {
+                color: '#0D9488',
+                weight: 2,
+                fillColor: '#0D9488',
+                fillOpacity: 0.1,
+                dashArray: '5, 5'
+            }).addTo(map);
 
-            // Place markers for all projects in current sector
-            sector.projects.forEach(proj => {
-                const marker = L.marker([proj.lat, proj.lng], { icon: customIcon }).addTo(map);
-                markers.push(marker);
+            // 2. Plot Target Sites (Teal Dots)
+            markers.forEach(m => map.removeLayer(m.marker));
+            markers = [];
+
+            sector.projects.forEach((proj, idx) => {
+                const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false) }).addTo(map);
+                marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -5] });
+                markers.push({ marker, proj, idx });
             });
         }
 
-        // --- 5. UI UPDATES & NAVIGATION ---
+        // --- 5. UI UPDATES & NAVIGATION ANIMATIONS ---
         function navigateSector(direction) {
+            const prevCoords = ALL_SECTORS[currentIdx].coords;
+            
             // Update Index
             currentIdx = (currentIdx + direction + ALL_SECTORS.length) % ALL_SECTORS.length;
-            const sector = ALL_SECTORS[currentIdx];
+            const newSector = ALL_SECTORS[currentIdx];
 
-            // Trigger Map Flyover ("Truck Routing")
+            // Map Flyover
             if(map) {
-                map.flyTo(sector.coords, 14, { duration: 1.5, easeLinearity: 0.25 });
+                map.flyTo(newSector.coords, 14, { duration: 1.5, easeLinearity: 0.25 });
             }
+
+            // Draw Animated Navigation Path (Truck Route)
+            drawAnimatedRoute(prevCoords, newSector.coords);
 
             // Update UI
             renderDashboard();
-            updateMapMarkers();
+            updateMapFeatures();
+        }
+
+        function drawAnimatedRoute(start, end) {
+            if (activeRouteLine) map.removeLayer(activeRouteLine);
+
+            activeRouteLine = L.polyline([start, end], {
+                color: '#0D9488',
+                weight: 3,
+                className: 'animated-route',
+                opacity: 0.8
+            }).addTo(map);
+
+            // Trigger smooth CSS draw animation based on actual SVG path length
+            setTimeout(() => {
+                const pathEl = document.querySelector('.animated-route path');
+                if (pathEl) {
+                    const length = pathEl.getTotalLength();
+                    pathEl.style.strokeDasharray = length;
+                    pathEl.style.strokeDashoffset = length;
+                    // Trigger reflow
+                    pathEl.getBoundingClientRect();
+                    pathEl.style.transition = 'stroke-dashoffset 2s ease-in-out';
+                    pathEl.style.strokeDashoffset = '0';
+                }
+            }, 50);
+        }
+
+        // Project Click Logic
+        function selectProject(index) {
+            const sector = ALL_SECTORS[currentIdx];
+            const p = sector.projects[index];
+            
+            // Zoom precisely to selected site
+            map.flyTo([p.lat, p.lng], 16, { duration: 1.2 });
+
+            // Highlight Marker and list Item
+            markers.forEach(m => {
+                if (m.idx === index) {
+                    m.marker.setIcon(getDotIcon(true));
+                    m.marker.openTooltip();
+                } else {
+                    m.marker.setIcon(getDotIcon(false));
+                    m.marker.closeTooltip();
+                }
+            });
+
+            // Visually highlight in sidebar
+            document.querySelectorAll('.project-list-item').forEach((el, i) => {
+                if(i === index) {
+                    el.classList.add('border-teal-400', 'bg-white', 'shadow-md');
+                    el.classList.remove('border-white/50', 'bg-white/80');
+                } else {
+                    el.classList.remove('border-teal-400', 'bg-white', 'shadow-md');
+                    el.classList.add('border-white/50', 'bg-white/80');
+                }
+            });
         }
 
         function renderDashboard() {
             const sector = ALL_SECTORS[currentIdx];
             
-            // Header text
             document.getElementById('header-sector-name').textContent = sector.sector;
-            
-            // Panel text
             document.getElementById('dashboard-sector-name').textContent = sector.sector;
             document.getElementById('dashboard-status').textContent = sector.stats.status;
             document.getElementById('dashboard-capacity').textContent = sector.stats.capacity;
             document.getElementById('project-count').textContent = sector.projects.length;
 
-            // Render projects list
             const listEl = document.getElementById('project-list');
-            listEl.innerHTML = ''; // Clear old
+            listEl.innerHTML = '';
 
-            sector.projects.forEach(p => {
+            sector.projects.forEach((p, i) => {
                 listEl.innerHTML += `
-                    <div class="p-4 bg-white/80 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-200 hover:bg-white transition-all group cursor-default">
+                    <div onclick="selectProject(${i})" class="project-list-item p-4 bg-white/80 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-200 hover:bg-white transition-all group cursor-pointer">
                         <div>
                             <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${p.name}</div>
                             <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
                         </div>
-                        <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-1 rounded-md border border-teal-100">
-                            ${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}
+                        <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-1 rounded-md border border-teal-100 flex items-center gap-1">
+                            <i data-lucide="navigation" class="w-3 h-3"></i> ${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}
                         </div>
                     </div>
                 `;
             });
+            lucide.createIcons(); // Re-initialize icons inside new list elements
         }
 
         // --- 6. VIEW SWITCHER (Dashboard vs Admin) ---
@@ -414,23 +519,17 @@
             const titlePrefix = document.getElementById('header-title-prefix');
 
             if (viewName === 'dashboard') {
-                // Show Dashboard, Hide Admin
                 vDash.classList.replace('view-hidden', 'view-visible');
                 vAdmin.classList.replace('view-visible', 'view-hidden');
                 activeBadge.style.display = 'flex';
                 titlePrefix.textContent = 'Delivery';
-
-                // Update Sidebar Styles
                 bDash.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
                 bAdmin.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
             } else {
-                // Show Admin, Hide Dashboard
                 vAdmin.classList.replace('view-hidden', 'view-visible');
                 vDash.classList.replace('view-visible', 'view-hidden');
                 activeBadge.style.display = 'none';
                 titlePrefix.textContent = 'Franchise';
-
-                // Update Sidebar Styles
                 bAdmin.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full bg-teal-50 text-teal-600 shadow-sm";
                 bDash.className = "nav-btn p-3 rounded-2xl cursor-pointer transition-all flex justify-center w-full text-gray-300 hover:text-gray-500 hover:bg-gray-50";
             }
