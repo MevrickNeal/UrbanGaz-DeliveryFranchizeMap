@@ -53,10 +53,10 @@
             border: 1px solid rgba(13, 148, 136, 0.2);
             border-radius: 16px;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-            padding: 0;
+            padding: 0 !important;
             overflow: hidden;
         }
-        .leaflet-popup-content { margin: 0; width: 220px !important; }
+        .leaflet-popup-content { margin: 0 !important; width: 240px !important; }
         .leaflet-popup-tip-container { display: none; }
         
         /* Map Background Treatment */
@@ -65,10 +65,6 @@
             height: 100%;
             z-index: 0;
             filter: grayscale(0.5) contrast(1.1);
-            transition: filter 0.8s ease;
-        }
-        .map-traffic-mode {
-            filter: grayscale(0.1) contrast(1.1) brightness(0.8) !important;
         }
 
         /* View Transitions */
@@ -128,15 +124,6 @@
             pointer-events: none;
         }
 
-        .opt-route-trail {
-            filter: drop-shadow(0 0 8px rgba(245,158,11, 0.6));
-            stroke-dasharray: 10;
-            animation: dashScroll 1s linear infinite;
-        }
-        @keyframes dashScroll {
-            to { stroke-dashoffset: -20; }
-        }
-
         /* Splash Screen */
         .splash-logo { animation: float 4s ease-in-out infinite; }
         @keyframes float {
@@ -172,6 +159,12 @@
         .custom-checkbox:checked + div svg {
             display: block;
         }
+
+        /* Spy Cam Scanline Effect */
+        .scanline-effect {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+        }
     </style>
 </head>
 <body class="selection:bg-teal-100 flex h-screen w-screen bg-[#FDFDFF]">
@@ -180,7 +173,7 @@
     <div id="splash-screen" class="fixed inset-0 z-[9999] bg-[#FDFDFF] flex flex-col items-center justify-center transition-opacity duration-1000">
         <div class="relative flex flex-col items-center">
             <div class="absolute inset-0 rounded-full blur-[80px] bg-teal-400/20 animate-pulse w-64 h-64 -m-8 mx-auto"></div>
-            <img src="./urbangaz.png" alt="" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
+            <img src="./urbangaz.png" alt="URBN GAZ Logo" class="splash-logo w-48 md:w-64 h-auto object-contain z-10 mb-12 drop-shadow-2xl" onerror="this.src='https://placehold.co/400x400/ffffff/0D9488?text=URBN+GAZ'"/>
             <div class="z-10 flex flex-col items-center w-64">
                 <div class="text-[10px] font-bold tracking-[0.3em] text-teal-600 uppercase mb-3 flex items-center gap-2">
                     <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Initializing Network
@@ -194,7 +187,8 @@
 
     <!-- ================= SIDEBAR ================= -->
     <nav class="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 gap-10 z-[100] shadow-sm flex-shrink-0 relative">
-        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-pointer hover:scale-105 transition-transform" onclick="minimizeAllViews()">
+        <!-- Logo Icon (Static, no click action) -->
+        <div class="w-12 h-12 bg-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-teal-200 cursor-default">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-white">
                 <path d="M7 8C7 5.79086 8.79086 4 11 4H13C15.2091 4 17 5.79086 17 8V10H7V8Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.5" />
                 <rect x="6" y="10" width="12" height="10" rx="2" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="1.5" />
@@ -239,17 +233,13 @@
                 </h1>
             </div>
 
-            <!-- MAP FLOATING CONTROLS (Traffic, Priority, Smart Route) -->
+            <!-- MAP FLOATING CONTROLS -->
             <div id="map-controls" class="mt-4 flex flex-col gap-3 transition-opacity duration-300">
-                <button onclick="toggleTrafficLayer()" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
-                    <div id="traffic-indicator" class="w-2.5 h-2.5 rounded-full bg-gray-300 transition-colors"></div>
-                    Live Traffic Radar
-                </button>
                 <button onclick="togglePriorityAlerts()" id="btn-priority" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
                     <i data-lucide="alert-circle" class="w-4 h-4 text-gray-400" id="icon-priority"></i> Priority Alerts
                 </button>
-                <button onclick="calculateAdvancedRoute()" id="btn-route-plan" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max">
-                    <i data-lucide="route" class="w-4 h-4 text-teal-600"></i> Smart Route Plan
+                <button onclick="toggleSurveillanceWidget()" id="btn-surveillance" class="px-4 py-2.5 bg-white/90 backdrop-blur-xl border border-gray-200 shadow-lg rounded-full text-[11px] font-bold text-gray-700 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95 w-max border-l-4 border-l-gray-400">
+                    <i data-lucide="cctv" class="w-4 h-4 text-gray-400" id="icon-surveillance"></i> Fleet Cam
                 </button>
             </div>
         </div>
@@ -260,6 +250,43 @@
                 <i data-lucide="truck" class="w-[18px] h-[18px] text-teal-600"></i>
                 <span class="text-gray-400 font-normal">Active Region:</span>
                 <span id="header-sector-name">JOLSHIRI ABASHON</span>
+            </div>
+        </div>
+
+        <!-- ================= SPY MOVIE SURVEILLANCE WIDGET ================= -->
+        <div id="surveillance-widget" class="absolute bottom-8 right-8 z-[500] bg-gray-900/90 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl overflow-hidden transition-all duration-500 w-72 lg:w-80 transform translate-y-[150%] opacity-0 pointer-events-none">
+            <div class="flex justify-between items-center px-4 py-3 bg-black/60 border-b border-white/10 cursor-pointer hover:bg-black/80 transition-colors" onclick="toggleSurveillanceSize()">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <span class="text-[10px] font-mono font-bold text-teal-400 tracking-widest uppercase">TRK-04 LIVE FEED</span>
+                </div>
+                <button class="text-white/50 hover:text-white transition-colors">
+                    <i data-lucide="minimize-2" id="surv-resize-icon" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div id="surv-video-container" class="relative h-48 bg-black transition-all duration-500 origin-bottom">
+                <video autoplay loop muted playsinline class="w-full h-full object-cover opacity-70 grayscale-[0.2] contrast-125 mix-blend-screen pointer-events-none">
+                    <source src="https://cdn.pixabay.com/video/2021/08/11/84687-587840134_tiny.mp4" type="video/mp4">
+                    <div class="w-full h-full flex items-center justify-center text-teal-500/50 font-mono text-xs">NO SIGNAL</div>
+                </video>
+                <div class="absolute inset-0 pointer-events-none border-[1px] border-teal-500/30 m-3 rounded z-10">
+                    <div class="absolute top-0 left-0 border-t-2 border-l-2 border-teal-400 w-3 h-3 -translate-x-1 -translate-y-1"></div>
+                    <div class="absolute top-0 right-0 border-t-2 border-r-2 border-teal-400 w-3 h-3 translate-x-1 -translate-y-1"></div>
+                    <div class="absolute bottom-0 left-0 border-b-2 border-l-2 border-teal-400 w-3 h-3 -translate-x-1 translate-y-1"></div>
+                    <div class="absolute bottom-0 right-0 border-b-2 border-r-2 border-teal-400 w-3 h-3 translate-x-1 translate-y-1"></div>
+                    <div class="absolute top-2 left-2 flex flex-col gap-1">
+                        <span class="text-[9px] font-mono font-bold text-white bg-black/60 px-1.5 py-0.5 rounded w-max backdrop-blur-md">SPEED: <span id="surv-speed" class="text-teal-400">42</span> KM/H</span>
+                        <span class="text-[8px] font-mono text-white/80 bg-black/60 px-1.5 rounded w-max">LPG LOAD: 85%</span>
+                    </div>
+                    <div class="absolute bottom-2 right-2 text-[8px] font-mono text-white bg-black/60 px-1.5 py-1 rounded text-right backdrop-blur-md border border-white/5">
+                        LAT: <span id="surv-lat" class="text-teal-300">23.8223</span><br>
+                        LNG: <span id="surv-lng" class="text-teal-300">90.4873</span>
+                    </div>
+                    <div id="surv-alert" class="absolute bottom-2 left-2 text-[8px] font-mono text-red-400 bg-red-900/40 px-1.5 py-0.5 rounded border border-red-500/30 animate-pulse hidden">
+                        URGENT DELIVERY
+                    </div>
+                    <div class="absolute inset-0 scanline-effect opacity-30"></div>
+                </div>
             </div>
         </div>
 
@@ -340,7 +367,6 @@
                         </span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <!-- EXPAND TO FULLSCREEN BUTTON -->
                         <button onclick="toggleFullscreen('view-admin')" class="p-2 bg-teal-50 hover:bg-teal-100 rounded-full text-teal-700 transition-colors" title="Expand Fullscreen">
                             <i data-lucide="maximize-2" id="fs-icon-admin" class="w-5 h-5"></i>
                         </button>
@@ -385,7 +411,12 @@
                         <div class="p-6 bg-gray-50/50 border border-gray-200 rounded-3xl">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="briefcase" class="w-4 h-4 text-teal-600"></i> 1. Franchise Details</h3>
                             <div class="grid grid-cols-2 gap-4">
-                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Franchise Owner Name</label><input id="inp-franchise" type="text" placeholder="e.g. Mr. Rahman" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Franchise Name</label><input id="inp-franchise" type="text" placeholder="e.g. Jolshiri Hub" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Franchise Owner Name</label><input id="inp-franchise-owner" type="text" placeholder="e.g. Mr. Rahman" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Target Area / Sector</label>
+                                    <select id="inp-area" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"></select>
+                                </div>
                                 <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Contact Number</label><input id="inp-contact" type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                             </div>
                         </div>
@@ -393,9 +424,10 @@
                         <div class="p-6 bg-gray-50/50 border border-gray-200 rounded-3xl">
                             <h3 class="text-xs font-bold text-gray-800 uppercase tracking-widest mb-4 flex items-center gap-2"><i data-lucide="building" class="w-4 h-4 text-teal-600"></i> 2. Building Details</h3>
                             <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div class="flex flex-col gap-1.5 col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Building Name & Address</label><input id="inp-building" type="text" placeholder="e.g. Asa Tower, Sec-11, Jolshiri" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
-                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Total Flats</label><input type="number" placeholder="10" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
-                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Owner Contact (Optional)</label><input type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5 col-span-2"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Building Name</label><input id="inp-building" type="text" placeholder="e.g. Asa Tower" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Full Address / Location</label><input id="inp-address" type="text" placeholder="e.g. Sec-11, Road 2" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Total Flats</label><input id="inp-total-flats" type="number" placeholder="10" class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
+                                <div class="flex flex-col gap-1.5"><label class="text-[10px] font-bold text-gray-500 uppercase ml-1">Owner Contact (Optional)</label><input id="inp-bldg-owner-contact" type="text" placeholder="+880..." class="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-100 text-sm"/></div>
                             </div>
                         </div>
 
@@ -637,9 +669,17 @@
             },
             {
                 sector: "KHILKHET",
-                coords: [23.8315, 90.4178],
-                osmQuery: "Khilkhet Thana, Dhaka",
-                polygon: [[23.840, 90.412], [23.842, 90.420], [23.838, 90.428], [23.830, 90.430], [23.824, 90.425], [23.822, 90.418], [23.825, 90.410], [23.832, 90.408]],
+                coords: [23.834, 90.425],
+                osmQuery: null,
+                polygon: [
+                    [23.83843423121347, 90.41928522618247], [23.833190014334107, 90.41999892799913], [23.82858301291853, 90.42066896638312],
+                    [23.82578882476561, 90.42206257054454], [23.825733980250575, 90.42305160691421], [23.826683328879568, 90.42772366500446],
+                    [23.829358532570993, 90.43987892294115], [23.833101853165715, 90.43929729912162], [23.833495823832024, 90.43932130813272],
+                    [23.835697445345943, 90.4375981662024], [23.83731568431641, 90.4365270547757], [23.838454398341867, 90.4347386083366],
+                    [23.840681609077322, 90.43388111599006], [23.841344374344615, 90.43357095713918], [23.842765945010882, 90.43242403682427],
+                    [23.8422885913417, 90.42859958603333], [23.842798775574536, 90.42569837333224], [23.843185641295563, 90.42224797815612],
+                    [23.84263193945641, 90.42171473272163], [23.838918386752425, 90.42010614016101], [23.83843423121347, 90.41928522618247]
+                ],
                 stats: { status: "Stable Growth", capacity: "62%" },
                 projects: [
                     { name: "NOOR SHELTER", loc: "MODDHOPARA", lat: 23.832, lng: 90.418, flats: 20, meters: 18, priority: "3 Days" },
@@ -650,9 +690,20 @@
             },
             {
                 sector: "DAKKHIN KHAN",
-                coords: [23.8447, 90.4130],
-                osmQuery: "Dakshinkhan, Dhaka", 
-                polygon: [[23.855, 90.405], [23.858, 90.415], [23.852, 90.425], [23.845, 90.428], [23.838, 90.420], [23.835, 90.410], [23.840, 90.402], [23.848, 90.400]],
+                coords: [23.855, 90.418],
+                osmQuery: null,
+                polygon: [
+                    [23.85816137682913, 90.40241962908766], [23.853172142318726, 90.40691572152093], [23.850182718277424, 90.40991647037345],
+                    [23.851074034338154, 90.4122729027498], [23.850787031999843, 90.41548212717316], [23.849473594152244, 90.41651333315446],
+                    [23.849228883308925, 90.42154945418002], [23.848996793834672, 90.42701359065074], [23.849082894076346, 90.42776988796533],
+                    [23.851673754864393, 90.4313663370238], [23.852732990083638, 90.4321857254422], [23.85364433820135, 90.43307370145885],
+                    [23.857590016330903, 90.4330960290007], [23.85826899015609, 90.4329813266292], [23.859415878749232, 90.43292994553008],
+                    [23.861066336855757, 90.432454620616], [23.86078463490375, 90.42900570633799], [23.860658144021215, 90.42686109013925],
+                    [23.860710587809578, 90.42447449038406], [23.86012340943489, 90.42246137559653], [23.85981563097718, 90.42119007140258],
+                    [23.859874220472065, 90.42054441415593], [23.859022902413344, 90.41617180484218], [23.85870101129295, 90.41548054658125],
+                    [23.858644552980422, 90.41377672307527], [23.857939520072065, 90.41099507951964], [23.85826212641878, 90.40999914397077],
+                    [23.8578070759647, 90.4064363002098], [23.858623685587816, 90.4060524892667], [23.85816137682913, 90.40241962908766]
+                ],
                 stats: { status: "New Expansion", capacity: "40%" },
                 projects: [
                     { name: "SOTOTA TOWER", loc: "KAWLAR", lat: 23.845, lng: 90.413, flats: 40, meters: 35, priority: "Urgent" }
@@ -672,8 +723,16 @@
             {
                 sector: "UTTARA",
                 coords: [23.8759, 90.3795],
-                osmQuery: "Uttara, Dhaka",
-                polygon: [[23.888, 90.380], [23.885, 90.395], [23.875, 90.402], [23.862, 90.398], [23.858, 90.385], [23.860, 90.375], [23.870, 90.368], [23.880, 90.370]],
+                osmQuery: null,
+                polygon: [
+                    [23.85214, 90.40804], [23.85767, 90.40632], [23.85829, 90.41321], [23.86059, 90.42639],
+                    [23.87169, 90.42540], [23.87889, 90.42109], [23.87937, 90.42059], [23.88514, 90.41666],
+                    [23.88133, 90.40691], [23.88163, 90.40469], [23.88054, 90.39917], [23.88061, 90.39679],
+                    [23.87970, 90.39180], [23.87890, 90.38943], [23.87550, 90.38162], [23.87560, 90.37991],
+                    [23.87320, 90.37908], [23.87071, 90.37843], [23.86779, 90.37582], [23.86688, 90.37799],
+                    [23.86640, 90.38349], [23.86464, 90.38477], [23.86201, 90.38662], [23.86083, 90.39003],
+                    [23.86159, 90.39353], [23.85214, 90.40804]
+                ],
                 stats: { status: "Active Delivery", capacity: "78%" },
                 projects: [
                     { name: "MUZAFFAR GARDEN", loc: "SEC-10", lat: 23.876, lng: 90.380, flats: 50, meters: 48, priority: "Urgent" }
@@ -681,15 +740,54 @@
             }
         ];
 
-        let currentIdx = 0, map = null, markers = [], currentPolygon = null;
-        let isNavigatingRoute = false, trafficEnabled = false, alertsEnabled = false;
-        let optRouteLayer = null;
+        // ======================= GLOBAL STATE VARIABLES =======================
+        let currentIdx = "ALL"; // DEFAULT TO ALL AREAS
+        let map = null, markers = [], currentPolygons = null; // Use LayerGroup for polygons
+        let isNavigatingRoute = false, alertsEnabled = false;
+        let isSurvOpen = false, isSurvMinimized = false;
         const VIEW_NAMES = ['dashboard', 'admin', 'billing', 'user'];
         let currentActiveView = 'dashboard';
+        let currentUserRole = "DISTRIBUTOR";
+        let activePaymentId = null;
+        let activeFranchiseFilters = ['ALL'];
+
+        let mockDB = [
+            { id: 1, franchise: "Jolshiri Hub", building: "Asa Tower", flat: "A-1", cons: 45, bill: 1350, paid: 0 },
+            { id: 2, franchise: "Jolshiri Hub", building: "Asa Tower", flat: "A-2", cons: 30, bill: 900, paid: 900 },
+            { id: 3, franchise: "Jolshiri Hub", building: "Zoita", flat: "101", cons: 55, bill: 1650, paid: 500 },
+            { id: 4, franchise: "Khilkhet Depot", building: "Noor Shelter", flat: "G-B", cons: 40, bill: 1200, paid: 0 }
+        ];
+
+        // ======================= INITIALIZATION =======================
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            populateSectorDropdown();
+            populateGeojsonSelector(); 
+            renderBillingTable();
+            changeUserRole("DISTRIBUTOR");
+            
+            setTimeout(() => { 
+                const lp = document.getElementById('loading-progress');
+                if(lp) lp.style.width = '100%'; 
+            }, 100);
+
+            setTimeout(() => {
+                initMap(); 
+                renderDashboard();
+                const splash = document.getElementById('splash-screen');
+                if(splash) {
+                    splash.classList.add('fade-out'); 
+                    setTimeout(() => { splash.remove(); }, 1000);
+                }
+            }, 1800);
+            
+            window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+            document.addEventListener('click', (e) => { 
+                if(!e.target.closest('#btn-dropdown')) closeSectorDropdown(); 
+            });
+        });
 
         // ======================= ROLE LOGIC =======================
-        let currentUserRole = "DISTRIBUTOR";
-
         function changeUserRole(role) {
             currentUserRole = role;
             const badge = document.getElementById('role-badge');
@@ -739,12 +837,18 @@
         // ======================= ADMIN GEOJSON LOGIC =======================
         function populateGeojsonSelector() {
             const sel = document.getElementById('geojson-sector-select');
-            if(!sel) return;
-            sel.innerHTML = '<option value="">-- Select Target Area --</option>';
-            ALL_SECTORS.forEach(s => {
-                sel.innerHTML += `<option value="${s.sector}">${s.sector}</option>`;
-            });
-            sel.innerHTML += `<option value="NEW_AREA">+ Create New Custom Area</option>`;
+            const areaSel = document.getElementById('inp-area');
+            
+            if(sel) {
+                sel.innerHTML = '<option value="">-- Select Target Area --</option>';
+                ALL_SECTORS.forEach(s => { sel.innerHTML += `<option value="${s.sector}">${s.sector}</option>`; });
+                sel.innerHTML += `<option value="NEW_AREA">+ Create New Custom Area</option>`;
+            }
+            if(areaSel) {
+                areaSel.innerHTML = '<option value="">-- Select Area --</option>';
+                ALL_SECTORS.forEach(s => { areaSel.innerHTML += `<option value="${s.sector}">${s.sector}</option>`; });
+                areaSel.innerHTML += `<option value="OTHER">Other / Fringe Area</option>`;
+            }
         }
 
         function updateMapAreaGeoJSON() {
@@ -791,8 +895,8 @@
                     populateSectorDropdown();
                     populateGeojsonSelector(); 
                     
-                    if(currentIdx === sectorIndex && map) {
-                        updateMapFeatures();
+                    if(currentIdx === sectorIndex || currentIdx === "ALL") {
+                        if(map) updateMapFeatures();
                     }
                 } else {
                     alert("Invalid GeoJSON Format. Must be a FeatureCollection containing a Polygon/MultiPolygon.");
@@ -803,15 +907,7 @@
             }
         }
 
-        // ======================= MOCK DATABASE & CSV LOGIC =======================
-        let mockDB = [
-            { id: 1, franchise: "Jolshiri Hub", building: "Asa Tower", flat: "A-1", cons: 45, bill: 1350, paid: 0 },
-            { id: 2, franchise: "Jolshiri Hub", building: "Asa Tower", flat: "A-2", cons: 30, bill: 900, paid: 900 },
-            { id: 3, franchise: "Jolshiri Hub", building: "Zoita", flat: "101", cons: 55, bill: 1650, paid: 500 },
-            { id: 4, franchise: "Khilkhet Depot", building: "Noor Shelter", flat: "G-B", cons: 40, bill: 1200, paid: 0 }
-        ];
-        let activePaymentId = null;
-
+        // ======================= EXCEL / CSV LOGIC =======================
         function exportCSV() {
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "ID,Franchise,Building,Flat,Consumption,Bill,Paid,Due\n";
@@ -840,8 +936,6 @@
         }
 
         // ======================= MULTI-SELECT BILLING DROPDOWN =======================
-        let activeFranchiseFilters = ['ALL'];
-
         function toggleMultiSelectMenu(e) {
             e.stopPropagation();
             const menu = document.getElementById('multi-select-menu');
@@ -882,7 +976,8 @@
                 }
             } else {
                 if(checkbox.checked) {
-                    document.getElementById('cb-ALL').checked = false;
+                    const cbAll = document.getElementById('cb-ALL');
+                    if(cbAll) cbAll.checked = false;
                     activeFranchiseFilters = activeFranchiseFilters.filter(f => f !== 'ALL');
                     activeFranchiseFilters.push(val);
                 } else {
@@ -892,43 +987,18 @@
 
             if(activeFranchiseFilters.length === 0) {
                 activeFranchiseFilters = ['ALL'];
-                document.getElementById('cb-ALL').checked = true;
+                const cbAll = document.getElementById('cb-ALL');
+                if(cbAll) cbAll.checked = true;
                 document.querySelectorAll('.franchise-cb').forEach(cb => cb.checked = false);
             }
             renderBillingTable();
         }
 
-        // Hide multi-select when clicked outside
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('multi-select-menu');
             if(menu && !menu.contains(e.target) && !e.target.closest('button[onclick="toggleMultiSelectMenu(event)"]')) {
                 menu.classList.add('hidden');
             }
-        });
-
-
-        // ======================= INITIALIZATION =======================
-        document.addEventListener("DOMContentLoaded", () => {
-            lucide.createIcons();
-            populateSectorDropdown();
-            populateGeojsonSelector(); 
-            renderBillingTable();
-            changeUserRole("DISTRIBUTOR");
-            
-            setTimeout(() => { document.getElementById('loading-progress').style.width = '100%'; }, 100);
-            setTimeout(() => {
-                initMap(); renderDashboard();
-                const splash = document.getElementById('splash-screen');
-                if(splash) {
-                    splash.classList.add('fade-out'); 
-                    setTimeout(() => { splash.remove(); }, 1000);
-                }
-            }, 1800);
-            
-            window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
-            document.addEventListener('click', (e) => { 
-                if(!e.target.closest('#btn-dropdown')) closeSectorDropdown(); 
-            });
         });
 
         // ======================= BILLING SPREADSHEET =======================
@@ -990,8 +1060,13 @@
 
         async function saveToGoogleSheet() {
             const franchise = document.getElementById('inp-franchise').value;
+            const franchiseOwner = document.getElementById('inp-franchise-owner').value;
+            const area = document.getElementById('inp-area').value;
             const contact = document.getElementById('inp-contact').value;
             const building = document.getElementById('inp-building').value;
+            const buildingAddress = document.getElementById('inp-address').value;
+            const totalFlats = document.getElementById('inp-total-flats').value;
+            const buildingOwnerContact = document.getElementById('inp-bldg-owner-contact').value;
             const flat = document.getElementById('inp-flat').value;
             const prev = document.getElementById('form-prev').value;
             const curr = document.getElementById('form-curr').value;
@@ -1000,8 +1075,8 @@
             const collected = 0; 
             const statusMsg = document.getElementById('save-status-msg');
 
-            if (!franchise || !building || !flat || !curr) {
-                statusMsg.textContent = "Please fill in Franchise, Building, Flat, and Meter readings.";
+            if (!franchise || !area || !building || !flat || !curr) {
+                statusMsg.textContent = "Please fill in Franchise Name, Area, Building, Flat, and Meter readings.";
                 statusMsg.className = "text-center mt-3 text-xs font-bold text-red-500 opacity-100 transition-opacity";
                 return;
             }
@@ -1027,6 +1102,11 @@
             formData.append('rate', rate);
             formData.append('generatedBill', bill);
             formData.append('collectedBill', collected);
+            formData.append('franchiseOwner', franchiseOwner);
+            formData.append('area', area);
+            formData.append('buildingAddress', buildingAddress);
+            formData.append('totalFlats', totalFlats);
+            formData.append('buildingOwnerContact', buildingOwnerContact);
 
             try {
                 await fetch(APPS_SCRIPT_URL, {
@@ -1070,6 +1150,52 @@
             }
         }
 
+        // ======================= MODAL LOGIC =======================
+        function openPaymentModal(id) {
+            activePaymentId = id;
+            const row = mockDB.find(d => d.id === id);
+            const due = row.bill - row.paid;
+
+            document.getElementById('modal-context').textContent = `${row.building} - Flat ${row.flat} (${row.franchise})`;
+            document.getElementById('modal-due').textContent = `৳ ${due}`;
+            document.getElementById('modal-amount').value = due;
+            document.getElementById('modal-receiver').value = '';
+
+            const modal = document.getElementById('payment-modal');
+            const box = document.getElementById('payment-modal-box');
+            
+            modal.classList.remove('pointer-events-none');
+            modal.classList.replace('opacity-0', 'opacity-100');
+            box.classList.replace('scale-95', 'scale-100');
+        }
+
+        function closePaymentModal() {
+            activePaymentId = null;
+            const modal = document.getElementById('payment-modal');
+            const box = document.getElementById('payment-modal-box');
+            
+            modal.classList.replace('opacity-100', 'opacity-0');
+            box.classList.replace('scale-100', 'scale-95');
+            setTimeout(() => { modal.classList.add('pointer-events-none'); }, 300);
+        }
+
+        function confirmPayment() {
+            if(!activePaymentId) return;
+            const amt = parseFloat(document.getElementById('modal-amount').value) || 0;
+            const rec = document.getElementById('modal-receiver').value;
+
+            if(!rec || amt <= 0) {
+                alert("Please enter receiver name and a valid amount.");
+                return;
+            }
+
+            const row = mockDB.find(d => d.id === activePaymentId);
+            row.paid += amt;
+            
+            closePaymentModal();
+            renderBillingTable();
+        }
+
         // ======================= MAP MODULE =======================
         function initMap() {
             const mapContainer = document.getElementById('map-container');
@@ -1078,47 +1204,19 @@
             map = L.map('map-container', {
                 zoomControl: false, attributionControl: false, dragging: true,
                 scrollWheelZoom: true, doubleClickZoom: true, touchZoom: true
-            }).setView(ALL_SECTORS[0].coords, 14);
+            }).setView([23.8223, 90.45], 12); // Center roughly around Dhaka
 
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map); 
-            updateMapFeatures();
-        }
-
-        // --- DHAKA TRAFFIC MOCK DATA ---
-        let trafficLayerGroup = null;
-        const DHAKA_TRAFFIC_DATA = [
-            { path: [[23.880, 90.395], [23.850, 90.402], [23.820, 90.400], [23.790, 90.395]], color: '#EF4444', weight: 5 }, // Airport rd
-            { path: [[23.820, 90.400], [23.825, 90.440], [23.822, 90.490], [23.808, 90.502]], color: '#F59E0B', weight: 4 }, // 300 feet to Jolshiri
-            { path: [[23.790, 90.395], [23.785, 90.410], [23.795, 90.415]], color: '#EF4444', weight: 4 }, // Gulshan
-            { path: [[23.870, 90.360], [23.875, 90.380], [23.880, 90.400]], color: '#22C55E', weight: 4 }, // Uttara internal
-            { path: [[23.845, 90.400], [23.850, 90.415], [23.844, 90.430]], color: '#F59E0B', weight: 4 }, // Dakkhin khan
-        ];
-
-        function toggleTrafficLayer() {
-            trafficEnabled = !trafficEnabled;
-            const container = document.getElementById('map-container'); const indicator = document.getElementById('traffic-indicator');
-            if(!container || !indicator || !map) return;
             
-            if(trafficEnabled) { 
-                container.classList.add('map-traffic-mode'); 
-                indicator.classList.replace('bg-gray-300', 'bg-red-500'); 
-                indicator.classList.add('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); 
-
-                trafficLayerGroup = L.layerGroup().addTo(map);
-                DHAKA_TRAFFIC_DATA.forEach(route => {
-                    L.polyline(route.path, { color: route.color, weight: route.weight, opacity: 0.7 }).addTo(trafficLayerGroup);
-                });
-
-            } else { 
-                container.classList.remove('map-traffic-mode'); 
-                indicator.classList.replace('bg-red-500', 'bg-gray-300'); 
-                indicator.classList.remove('shadow-[0_0_8px_rgba(239,68,68,0.8)]'); 
-                
-                if(trafficLayerGroup) {
-                    map.removeLayer(trafficLayerGroup);
-                    trafficLayerGroup = null;
-                }
+            currentPolygons = L.layerGroup().addTo(map);
+            updateMapFeatures();
+            
+            // Initialize bounds for ALL areas
+            if (currentIdx === "ALL") {
+                let allPts = [];
+                ALL_SECTORS.forEach(s => allPts.push(...s.polygon));
+                if(allPts.length > 0) map.fitBounds(L.latLngBounds(allPts), { padding: [50, 50] });
             }
         }
 
@@ -1135,41 +1233,6 @@
                 icon.classList.replace('text-red-500', 'text-gray-400');
             }
             updateMapFeatures(); 
-        }
-
-        function calculateAdvancedRoute() {
-            if(!map) return;
-            const btn = document.getElementById('btn-route-plan');
-            
-            if(optRouteLayer) {
-                map.removeLayer(optRouteLayer);
-                optRouteLayer = null;
-                btn.classList.remove('border-teal-400', 'bg-teal-50');
-                return;
-            }
-
-            btn.classList.add('border-teal-400', 'bg-teal-50');
-            
-            let urgentPoints = [];
-            ALL_SECTORS.forEach(s => {
-                if(s.projects) {
-                    s.projects.forEach(p => {
-                        if(p.priority === "Urgent") urgentPoints.push([p.lat, p.lng]);
-                    });
-                }
-            });
-
-            if(urgentPoints.length < 2) {
-                alert("Not enough urgent locations to form a route plan.");
-                btn.classList.remove('border-teal-400', 'bg-teal-50');
-                return;
-            }
-
-            optRouteLayer = L.polyline(urgentPoints, {
-                color: '#F59E0B', weight: 4, opacity: 0.8, className: 'opt-route-trail'
-            }).addTo(map);
-            
-            map.flyToBounds(optRouteLayer.getBounds(), { padding: [50, 50], duration: 1.5 });
         }
 
         function getDotIcon(isHighlighted, priorityStr = "") {
@@ -1194,85 +1257,120 @@
 
         function updateMapFeatures() {
             if(!map) return;
-            const sector = ALL_SECTORS[currentIdx];
-            if (currentPolygon) map.removeLayer(currentPolygon);
             
-            const polyStyle = { color: '#EA580C', weight: 3, fillColor: '#EA580C', fillOpacity: 0.05, dashArray: '5, 8', lineCap: 'round', lineJoin: 'round', className: 'geo-polygon' };
-            currentPolygon = L.polygon(sector.polygon, polyStyle).addTo(map);
-
+            currentPolygons.clearLayers();
             markers.forEach(m => map.removeLayer(m.marker));
             markers = [];
 
-            if(sector.projects) {
-                sector.projects.forEach((proj, idx) => {
-                    const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false, proj.priority) }).addTo(map);
-                    
-                    let badgeColor = proj.priority === "Urgent" ? "bg-red-100 text-red-700" : (proj.priority === "3 Days" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700");
-                    const popupContent = `
-                        <div class="p-4 bg-white/95 w-56">
-                            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Building Profile</div>
-                            <h4 class="text-base font-bold text-gray-800 leading-tight mb-2">${proj.name}</h4>
-                            <div class="grid grid-cols-2 gap-2 mb-3">
-                                <div class="bg-gray-50 p-2 rounded border border-gray-100">
-                                    <div class="text-[8px] text-gray-500 uppercase">Total Flats</div>
-                                    <div class="font-mono font-bold text-sm">${proj.flats}</div>
+            const polyStyle = { color: '#EA580C', weight: 3, fillColor: '#EA580C', fillOpacity: 0.05, dashArray: '5, 8', lineCap: 'round', lineJoin: 'round', className: 'geo-polygon' };
+
+            let sectorsToRender = currentIdx === "ALL" ? ALL_SECTORS : [ALL_SECTORS[currentIdx]];
+
+            sectorsToRender.forEach((sector, index) => {
+                let actualSIdx = currentIdx === "ALL" ? index : currentIdx;
+
+                if(sector.projects) {
+                    sector.projects.forEach((proj, pIdx) => {
+                        const marker = L.marker([proj.lat, proj.lng], { icon: getDotIcon(false, proj.priority) }).addTo(map);
+                        
+                        let badgeColor = proj.priority === "Urgent" ? "bg-red-100 text-red-700" : (proj.priority === "3 Days" ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700");
+                        
+                        const popupContent = `
+                            <div class="p-0 bg-white/95 w-60 rounded-xl overflow-hidden">
+                                <div class="relative w-full h-24 bg-gray-200">
+                                    <img src="https://maps.googleapis.com/maps/api/streetview?size=400x200&location=${proj.lat},${proj.lng}&key=YOUR_API_KEY_HERE" onerror="this.src='https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=400&h=200&fit=crop';" class="w-full h-full object-cover" alt="Street View" />
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                                    <div class="absolute bottom-2 left-3 text-white">
+                                        <div class="text-[9px] font-bold uppercase tracking-widest mb-0.5 opacity-80">Building Profile</div>
+                                        <h4 class="text-sm font-bold leading-tight">${proj.name}</h4>
+                                    </div>
                                 </div>
-                                <div class="bg-gray-50 p-2 rounded border border-gray-100">
-                                    <div class="text-[8px] text-gray-500 uppercase">Active Meters</div>
-                                    <div class="font-mono font-bold text-sm">${proj.meters}</div>
+                                <div class="p-4 pt-3">
+                                    <div class="grid grid-cols-2 gap-2 mb-3">
+                                        <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                            <div class="text-[8px] text-gray-500 uppercase">Total Flats</div>
+                                            <div class="font-mono font-bold text-sm text-gray-800">${proj.flats}</div>
+                                        </div>
+                                        <div class="bg-gray-50 p-2 rounded border border-gray-100">
+                                            <div class="text-[8px] text-gray-500 uppercase">Active Meters</div>
+                                            <div class="font-mono font-bold text-sm text-gray-800">${proj.meters}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <div class="text-[9px] font-bold text-gray-500 uppercase">Priority Reserve</div>
+                                        <div class="px-2 py-1 rounded text-[9px] font-bold uppercase ${badgeColor}">${proj.priority}</div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="text-[9px] font-bold text-gray-500 uppercase mb-1">Cylinder Priority Level</div>
-                            <div class="px-2 py-1 rounded text-[10px] font-bold uppercase w-max ${badgeColor}">${proj.priority} Reserve</div>
-                        </div>
-                    `;
-                    
-                    marker.bindPopup(popupContent, { closeButton: false, offset: [0, -5] });
-                    marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -10] });
-                    
-                    markers.push({ marker, proj, idx });
-                });
-            }
+                        `;
+                        
+                        marker.bindPopup(popupContent, { closeButton: false, offset: [0, -5] });
+                        marker.bindTooltip(proj.name, { direction: 'top', className: 'custom-tooltip', offset: [0, -10] });
+                        
+                        markers.push({ marker, proj, sIdx: actualSIdx, pIdx: pIdx });
+                    });
+                }
 
-            if (sector.osmQuery && !sector.geoJsonCache) {
-                fetch(`https://nominatim.openstreetmap.org/search.php?q=${encodeURIComponent(sector.osmQuery)}&polygon_geojson=1&format=json`)
-                .then(res => res.json())
-                .then(data => {
-                    const geoResult = data.find(d => d.geojson && (d.geojson.type === 'Polygon' || d.geojson.type === 'MultiPolygon'));
-                    if (geoResult) {
-                        sector.geoJsonCache = geoResult.geojson;
-                        if (currentIdx === ALL_SECTORS.indexOf(sector) && map) {
-                            map.removeLayer(currentPolygon);
-                            currentPolygon = L.geoJSON(sector.geoJsonCache, { style: polyStyle }).addTo(map);
+                if (sector.osmQuery && !sector.geoJsonCache && currentIdx !== "ALL") {
+                    fetch(`https://nominatim.openstreetmap.org/search.php?q=${encodeURIComponent(sector.osmQuery)}&polygon_geojson=1&format=json`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const geoResult = data.find(d => d.geojson && (d.geojson.type === 'Polygon' || d.geojson.type === 'MultiPolygon'));
+                        if (geoResult) {
+                            sector.geoJsonCache = geoResult.geojson;
+                            if (currentIdx === actualSIdx && map) updateMapFeatures();
+                        } else {
+                            sector.geoJsonCache = "NOT_FOUND";
+                            currentPolygons.addLayer(L.polygon(sector.polygon, polyStyle));
                         }
-                    } else {
+                    }).catch(e => {
                         sector.geoJsonCache = "NOT_FOUND";
-                    }
-                }).catch(e => {
-                    sector.geoJsonCache = "NOT_FOUND";
-                });
-            } else if (sector.geoJsonCache && sector.geoJsonCache !== "NOT_FOUND") {
-                map.removeLayer(currentPolygon);
-                currentPolygon = L.geoJSON(sector.geoJsonCache, { style: polyStyle }).addTo(map);
-            }
+                        currentPolygons.addLayer(L.polygon(sector.polygon, polyStyle));
+                    });
+                } else if (sector.geoJsonCache && sector.geoJsonCache !== "NOT_FOUND") {
+                    currentPolygons.addLayer(L.geoJSON(sector.geoJsonCache, { style: polyStyle }));
+                } else {
+                    currentPolygons.addLayer(L.polygon(sector.polygon, polyStyle));
+                }
+            });
         }
 
-        function navigateSector(dir) { goToSector((currentIdx + dir + ALL_SECTORS.length) % ALL_SECTORS.length); }
+        function navigateSector(dir) { 
+            if (currentIdx === "ALL") {
+                goToSector(dir > 0 ? 0 : ALL_SECTORS.length - 1);
+            } else {
+                goToSector((currentIdx + dir + ALL_SECTORS.length) % ALL_SECTORS.length); 
+            }
+        }
+        
         async function goToSector(targetIdx) {
             if (isNavigatingRoute || currentIdx === targetIdx || !map) return; 
             isNavigatingRoute = true; closeSectorDropdown();
-
-            const prevSector = ALL_SECTORS[currentIdx];
-            currentIdx = targetIdx;
-            const newSector = ALL_SECTORS[currentIdx];
 
             const hn = document.getElementById('dashboard-sector-name'); if(hn) hn.textContent = `NAVIGATING...`;
             const pl = document.getElementById('project-list'); if(pl) pl.innerHTML = `<div class="p-8 flex items-center justify-center text-teal-600"><i data-lucide="loader-2" class="animate-spin mr-2"></i> Panning Map</div>`;
             lucide.createIcons();
 
-            if (currentPolygon) map.removeLayer(currentPolygon);
-            if(optRouteLayer) { map.removeLayer(optRouteLayer); optRouteLayer = null; document.getElementById('btn-route-plan').classList.remove('border-teal-400', 'bg-teal-50');}
+            currentPolygons.clearLayers();
             markers.forEach(m => map.removeLayer(m.marker)); markers = [];
+
+            if (targetIdx === "ALL") {
+                currentIdx = "ALL";
+                let allPts = [];
+                ALL_SECTORS.forEach(s => allPts.push(...s.polygon));
+                if(allPts.length > 0) map.flyToBounds(L.latLngBounds(allPts), { padding: [50, 50], duration: 1.5 });
+                
+                setTimeout(() => { 
+                    renderDashboard(); 
+                    updateMapFeatures(); 
+                    isNavigatingRoute = false; 
+                }, 1600);
+                return;
+            }
+
+            const prevSector = currentIdx === "ALL" ? ALL_SECTORS[0] : ALL_SECTORS[currentIdx];
+            currentIdx = targetIdx;
+            const newSector = ALL_SECTORS[currentIdx];
 
             let routePts = [];
             try {
@@ -1310,6 +1408,16 @@
                 const lng = pts[i-1][1] + (pts[i][1] - pts[i-1][1]) * segProg;
 
                 pointerMarker.setLatLng([lat, lng]);
+                
+                const hudLat = document.getElementById('surv-lat');
+                const hudLng = document.getElementById('surv-lng');
+                const hudSpeed = document.getElementById('surv-speed');
+                if (hudLat && hudLng && hudSpeed) {
+                    hudLat.textContent = lat.toFixed(4);
+                    hudLng.textContent = lng.toFixed(4);
+                    if(Math.random() > 0.8) hudSpeed.textContent = Math.floor(Math.random() * (60 - 35 + 1) + 35);
+                }
+                
                 const currTrail = pts.slice(0, i); currTrail.push([lat, lng]);
                 trail.setLatLngs(currTrail);
 
@@ -1329,14 +1437,52 @@
             requestAnimationFrame(frame);
         }
 
-        function selectProject(index) {
+        // ======================= SURVEILLANCE FEED WIDGET =======================
+        function toggleSurveillanceWidget() {
+            isSurvOpen = !isSurvOpen;
+            const widget = document.getElementById('surveillance-widget');
+            const btn = document.getElementById('btn-surveillance');
+            const icon = document.getElementById('icon-surveillance');
+
+            if(isSurvOpen) {
+                widget.classList.remove('translate-y-[150%]', 'opacity-0', 'pointer-events-none');
+                btn.classList.add('border-teal-300', 'bg-teal-50');
+                icon.classList.replace('text-gray-400', 'text-teal-600');
+                const survAlert = document.getElementById('surv-alert');
+                if (survAlert) {
+                    survAlert.classList.remove('hidden');
+                    setTimeout(() => survAlert.classList.add('hidden'), 5000);
+                }
+            } else {
+                widget.classList.add('translate-y-[150%]', 'opacity-0', 'pointer-events-none');
+                btn.classList.remove('border-teal-300', 'bg-teal-50');
+                icon.classList.replace('text-teal-600', 'text-gray-400');
+            }
+        }
+
+        function toggleSurveillanceSize() {
+            isSurvMinimized = !isSurvMinimized;
+            const container = document.getElementById('surv-video-container');
+            const icon = document.getElementById('surv-resize-icon');
+
+            if(isSurvMinimized) {
+                container.style.height = '0px';
+                icon.setAttribute('data-lucide', 'maximize-2');
+            } else {
+                container.style.height = '12rem'; // 48 unit
+                icon.setAttribute('data-lucide', 'minimize-2');
+            }
+            lucide.createIcons();
+        }
+
+        function selectProject(sIdx, pIdx, el) {
             if(isNavigatingRoute || !map) return;
-            const sector = ALL_SECTORS[currentIdx];
-            const p = sector.projects[index];
+            const sector = ALL_SECTORS[sIdx];
+            const p = sector.projects[pIdx];
             map.flyTo([p.lat, p.lng], 16, { duration: 1.2 });
             
             markers.forEach(m => {
-                if (m.idx === index) {
+                if (m.sIdx === sIdx && m.pIdx === pIdx) {
                     m.marker.setIcon(getDotIcon(true, m.proj.priority));
                     m.marker.openPopup();
                 } else {
@@ -1345,15 +1491,14 @@
                 }
             });
 
-            document.querySelectorAll('.project-list-item').forEach((el, i) => {
-                if(i === index) {
-                    el.classList.add('border-teal-400', 'bg-white', 'shadow-md');
-                    el.classList.remove('border-white/50', 'bg-white/90');
-                } else {
-                    el.classList.remove('border-teal-400', 'bg-white', 'shadow-md');
-                    el.classList.add('border-white/50', 'bg-white/90');
-                }
+            document.querySelectorAll('.project-list-item').forEach((item) => {
+                item.classList.remove('border-teal-400', 'bg-white', 'shadow-md');
+                item.classList.add('border-white/50', 'bg-white/90');
             });
+            if(el) {
+                el.classList.add('border-teal-400', 'bg-white', 'shadow-md');
+                el.classList.remove('border-white/50', 'bg-white/90');
+            }
         }
 
         // ======================= UI NAVIGATION =======================
@@ -1368,39 +1513,88 @@
         }
         function populateSectorDropdown() {
             const dd = document.getElementById('sector-dropdown'); if(!dd) return; dd.innerHTML = '';
+            dd.innerHTML += `<button onclick="goToSector('ALL')" class="w-full text-left px-4 py-3 hover:bg-teal-50 hover:text-teal-700 rounded-xl text-xs font-bold text-teal-600 flex justify-between border-b border-gray-100 mb-1">🌍 All Areas Overview</button>`;
             ALL_SECTORS.forEach((s, i) => { dd.innerHTML += `<button onclick="goToSector(${i})" class="w-full text-left px-4 py-3 hover:bg-teal-50 hover:text-teal-700 rounded-xl text-xs font-bold text-gray-600 flex justify-between">${s.sector}</button>`; });
         }
         
         function renderDashboard() {
-            const s = ALL_SECTORS[currentIdx]; 
-            const hn = document.getElementById('header-sector-name'); if(hn) hn.textContent = s.sector; 
-            const dsn = document.getElementById('dashboard-sector-name'); if(dsn) dsn.textContent = s.sector; 
-            
-            const pCount = s.projects ? s.projects.length : 0;
-            const pc = document.getElementById('project-count'); if(pc) pc.textContent = pCount;
-
-            const lp = document.getElementById('label-prev-sector'); if(lp) lp.textContent = ALL_SECTORS[(currentIdx - 1 + ALL_SECTORS.length) % ALL_SECTORS.length].sector; 
-            const ln = document.getElementById('label-next-sector'); if(ln) ln.textContent = ALL_SECTORS[(currentIdx + 1) % ALL_SECTORS.length].sector;
-            
+            const hn = document.getElementById('header-sector-name'); 
+            const dsn = document.getElementById('dashboard-sector-name'); 
+            const pc = document.getElementById('project-count'); 
+            const statusEl = document.getElementById('dashboard-status');
+            const capEl = document.getElementById('dashboard-capacity');
+            const lp = document.getElementById('label-prev-sector'); 
+            const ln = document.getElementById('label-next-sector'); 
             const l = document.getElementById('project-list'); 
-            if(l) {
-                l.innerHTML = ''; 
-                if(s.projects) {
-                    s.projects.forEach((p, i) => { 
-                        let bCol = p.priority === "Urgent" ? "text-red-500" : (p.priority === "3 Days" ? "text-orange-500" : "text-green-500");
-                        l.innerHTML += `<div onclick="selectProject(${i})" class="project-list-item p-4 bg-white/90 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-300 transition-all group cursor-pointer shadow-sm">
+
+            if (currentIdx === "ALL") {
+                if(hn) hn.textContent = "GLOBAL OVERVIEW"; 
+                if(dsn) dsn.textContent = "ALL FRANCHISE AREAS"; 
+                
+                let totalProjects = 0;
+                let allProjs = [];
+                ALL_SECTORS.forEach((s, sIdx) => {
+                    if(s.projects) {
+                        totalProjects += s.projects.length;
+                        s.projects.forEach((p, pIdx) => allProjs.push({p, sIdx, pIdx}));
+                    }
+                });
+
+                if(pc) pc.textContent = totalProjects;
+                if(statusEl) statusEl.textContent = "Global Monitoring";
+                if(capEl) capEl.textContent = "Multiple";
+
+                if(lp) lp.textContent = ALL_SECTORS[ALL_SECTORS.length - 1].sector; 
+                if(ln) ln.textContent = ALL_SECTORS[0].sector;
+                
+                if(l) {
+                    l.innerHTML = ''; 
+                    allProjs.forEach((item) => { 
+                        let bCol = item.p.priority === "Urgent" ? "text-red-500" : (item.p.priority === "3 Days" ? "text-orange-500" : "text-green-500");
+                        l.innerHTML += `<div onclick="selectProject(${item.sIdx}, ${item.pIdx}, this)" class="project-list-item p-4 bg-white/90 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-300 transition-all group cursor-pointer shadow-sm">
                             <div>
-                                <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${p.name}</div>
-                                <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
+                                <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${item.p.name}</div>
+                                <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${ALL_SECTORS[item.sIdx].sector} • ${item.p.loc}</div>
                             </div>
                             <div class="flex flex-col items-end gap-1">
-                                <span class="text-[9px] font-bold uppercase ${bCol}">${p.priority}</span>
+                                <span class="text-[9px] font-bold uppercase ${bCol}">${item.p.priority}</span>
                                 <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-0.5 rounded"><i data-lucide="navigation" class="w-3 h-3 inline"></i></div>
                             </div>
                         </div>`; 
                     });
-                } else {
-                     l.innerHTML = `<div class="p-4 text-xs text-gray-400 text-center italic">No target sites mapped yet.</div>`;
+                }
+            } else {
+                const s = ALL_SECTORS[currentIdx]; 
+                if(hn) hn.textContent = s.sector; 
+                if(dsn) dsn.textContent = s.sector; 
+                
+                const pCount = s.projects ? s.projects.length : 0;
+                if(pc) pc.textContent = pCount;
+                if(statusEl) statusEl.textContent = s.stats.status;
+                if(capEl) capEl.textContent = s.stats.capacity;
+
+                if(lp) lp.textContent = ALL_SECTORS[(currentIdx - 1 + ALL_SECTORS.length) % ALL_SECTORS.length].sector; 
+                if(ln) ln.textContent = ALL_SECTORS[(currentIdx + 1) % ALL_SECTORS.length].sector;
+                
+                if(l) {
+                    l.innerHTML = ''; 
+                    if(s.projects) {
+                        s.projects.forEach((p, i) => { 
+                            let bCol = p.priority === "Urgent" ? "text-red-500" : (p.priority === "3 Days" ? "text-orange-500" : "text-green-500");
+                            l.innerHTML += `<div onclick="selectProject(${currentIdx}, ${i}, this)" class="project-list-item p-4 bg-white/90 rounded-2xl flex items-center justify-between border border-white/50 hover:border-teal-300 transition-all group cursor-pointer shadow-sm">
+                                <div>
+                                    <div class="text-sm font-bold text-gray-800 group-hover:text-teal-700 transition-colors">${p.name}</div>
+                                    <div class="text-[10px] text-gray-400 font-medium uppercase mt-0.5">${p.loc}</div>
+                                </div>
+                                <div class="flex flex-col items-end gap-1">
+                                    <span class="text-[9px] font-bold uppercase ${bCol}">${p.priority}</span>
+                                    <div class="text-[10px] font-mono text-teal-600 bg-teal-50 px-2 py-0.5 rounded"><i data-lucide="navigation" class="w-3 h-3 inline"></i></div>
+                                </div>
+                            </div>`; 
+                        });
+                    } else {
+                         l.innerHTML = `<div class="p-4 text-xs text-gray-400 text-center italic">No target sites mapped yet.</div>`;
+                    }
                 }
             }
             lucide.createIcons(); 
@@ -1453,6 +1647,10 @@
                     btn.classList.replace('bg-teal-50', 'text-gray-300'); btn.classList.remove('text-teal-600'); 
                 }
             });
+            
+            if(targetView !== 'dashboard' && isSurvOpen) {
+                toggleSurveillanceWidget();
+            }
         }
     </script>
 </body>
